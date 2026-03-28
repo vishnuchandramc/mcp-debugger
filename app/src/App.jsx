@@ -11,6 +11,88 @@ const DEFAULT_CONTEXT = JSON.stringify({ system: '', messages: [] }, null, 2);
 const HISTORY_KEY = 'mcp_debugger_history';
 const MAX_HISTORY = 5;
 
+function generateCurl({ method, url, headers, body }) {
+  const parts = ['curl'];
+  if (method !== 'GET') parts.push(`-X ${method}`);
+  parts.push(`"${url}"`);
+  for (const [key, value] of Object.entries(headers)) {
+    parts.push(`-H "${key}: ${value.replace(/"/g, '\\"')}"`);
+  }
+  if (body && method !== 'GET' && method !== 'DELETE') {
+    parts.push(`-d '${body.replace(/'/g, "'\\''")}'`);
+  }
+  return parts.join(' \\\n  ');
+}
+
+function tokenize(str) {
+  const tokens = [];
+  let i = 0;
+  while (i < str.length) {
+    // Skip whitespace
+    while (i < str.length && /\s/.test(str[i])) i++;
+    if (i >= str.length) break;
+
+    const ch = str[i];
+    if (ch === '"' || ch === "'") {
+      // Quoted string
+      const quote = ch;
+      i++;
+      let token = '';
+      while (i < str.length && str[i] !== quote) {
+        if (str[i] === '\\' && i + 1 < str.length) {
+          token += str[i + 1];
+          i += 2;
+        } else {
+          token += str[i];
+          i++;
+        }
+      }
+      i++; // skip closing quote
+      tokens.push(token);
+    } else {
+      // Unquoted token
+      let token = '';
+      while (i < str.length && !/\s/.test(str[i])) {
+        token += str[i];
+        i++;
+      }
+      tokens.push(token);
+    }
+  }
+  return tokens;
+}
+
+function parseCurl(curlStr) {
+  const normalized = curlStr.replace(/\\\s*\n/g, ' ').trim();
+  if (!normalized.startsWith('curl')) return null;
+
+  let method = 'GET';
+  let url = '';
+  const headers = [];
+  let body = null;
+
+  const tokens = tokenize(normalized);
+  for (let i = 1; i < tokens.length; i++) {
+    const t = tokens[i];
+    if (t === '-X' || t === '--request') {
+      method = (tokens[++i] || 'GET').toUpperCase();
+    } else if (t === '-H' || t === '--header') {
+      const hdr = tokens[++i] || '';
+      const colonIdx = hdr.indexOf(':');
+      if (colonIdx > 0) {
+        headers.push({ key: hdr.slice(0, colonIdx).trim(), value: hdr.slice(colonIdx + 1).trim() });
+      }
+    } else if (t === '-d' || t === '--data' || t === '--data-raw' || t === '--data-binary') {
+      body = tokens[++i] || '';
+      if (method === 'GET') method = 'POST';
+    } else if (!t.startsWith('-') && !url) {
+      url = t;
+    }
+  }
+
+  return { method, url, headers, body };
+}
+
 function buildHeadersObject(headerRows, includeContentType) {
   const result = {};
   if (includeContentType) {
@@ -112,6 +194,11 @@ export default function App() {
   const [selectedTool, setSelectedTool] = useState(null);
   const [mcpConnected, setMcpConnected] = useState(false);
   const [mcpConnecting, setMcpConnecting] = useState(false);
+
+  // --- cURL state ---
+  const [showCurl, setShowCurl] = useState(false);
+  const [curlCommand, setCurlCommand] = useState('');
+  const [curlCopied, setCurlCopied] = useState(false);
 
   // --- Layout state ---
   const [leftWidth, setLeftWidth] = useState(50);
@@ -300,6 +387,37 @@ export default function App() {
     }
   }
 
+  // --- cURL handlers ---
+  function handleGenerateCurl() {
+    const hasBody = method !== 'GET' && method !== 'DELETE';
+    const hdrs = buildHeadersObject(headers, hasBody);
+    const cmd = generateCurl({ method, url: endpoint, headers: hdrs, body: hasBody ? body : null });
+    setCurlCommand(cmd);
+    setShowCurl(true);
+    setCurlCopied(false);
+  }
+
+  function handleCurlImport(text) {
+    const result = parseCurl(text);
+    if (!result) return;
+    setMethod(result.method);
+    setEndpoint(result.url);
+    setHeaders(result.headers.length ? result.headers : [{ key: '', value: '' }]);
+    if (result.body) {
+      try {
+        setBody(JSON.stringify(JSON.parse(result.body), null, 2));
+      } catch {
+        setBody(result.body);
+      }
+    }
+  }
+
+  function handleCurlCopy() {
+    navigator.clipboard.writeText(curlCommand);
+    setCurlCopied(true);
+    setTimeout(() => setCurlCopied(false), 2000);
+  }
+
   // --- Mode switching ---
   function handleModeChange(newMode) {
     if (newMode === mode) return;
@@ -335,6 +453,8 @@ export default function App() {
         onConnect={handleConnect}
         onDisconnect={handleDisconnect}
         selectedTool={selectedTool}
+        onGenerateCurl={handleGenerateCurl}
+        onCurlImport={handleCurlImport}
       />
 
       <div style={styles.body}>
@@ -419,6 +539,21 @@ export default function App() {
           </div>
         </div>
       </div>
+
+      {showCurl && (
+        <div style={styles.modalOverlay} onClick={() => setShowCurl(false)}>
+          <div style={styles.modalCard} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.modalHeader}>
+              <span style={styles.modalTitle}>cURL Command</span>
+              <button onClick={() => setShowCurl(false)} style={styles.modalClose}>&times;</button>
+            </div>
+            <pre style={styles.modalPre}>{curlCommand}</pre>
+            <button onClick={handleCurlCopy} style={styles.modalCopyButton}>
+              {curlCopied ? 'Copied!' : 'Copy'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -555,5 +690,73 @@ const styles = {
     flexShrink: 0,
     backgroundColor: '#3c3c3c',
     cursor: 'col-resize',
+  },
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+  },
+  modalCard: {
+    backgroundColor: '#252526',
+    border: '1px solid #3c3c3c',
+    borderRadius: '8px',
+    padding: '20px',
+    maxWidth: '600px',
+    width: '90%',
+    maxHeight: '80vh',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  modalHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '12px',
+  },
+  modalTitle: {
+    fontSize: '14px',
+    fontWeight: 700,
+    color: '#d4d4d4',
+  },
+  modalClose: {
+    background: 'none',
+    border: 'none',
+    color: '#888',
+    fontSize: '20px',
+    cursor: 'pointer',
+    padding: '0 4px',
+  },
+  modalPre: {
+    backgroundColor: '#1e1e1e',
+    border: '1px solid #3c3c3c',
+    borderRadius: '4px',
+    padding: '12px',
+    color: '#d4d4d4',
+    fontSize: '12px',
+    fontFamily: 'monospace',
+    whiteSpace: 'pre-wrap',
+    wordBreak: 'break-all',
+    overflowY: 'auto',
+    flex: 1,
+    margin: 0,
+  },
+  modalCopyButton: {
+    marginTop: '12px',
+    backgroundColor: '#0e639c',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '4px',
+    padding: '6px 20px',
+    fontSize: '13px',
+    fontFamily: 'monospace',
+    cursor: 'pointer',
+    alignSelf: 'flex-end',
   },
 };

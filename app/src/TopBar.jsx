@@ -27,6 +27,8 @@ export default function TopBar({
   onConnect,
   onDisconnect,
   selectedTool,
+  onGenerateCurl,
+  onCurlImport,
 }) {
   return (
     <div style={styles.bar}>
@@ -62,6 +64,13 @@ export default function TopBar({
               type="text"
               value={endpoint}
               onChange={(e) => setEndpoint(e.target.value)}
+              onPaste={(e) => {
+                const text = e.clipboardData.getData('text');
+                if (text.trimStart().startsWith('curl')) {
+                  e.preventDefault();
+                  onCurlImport(text);
+                }
+              }}
               placeholder="https://example.com/api/endpoint"
               style={styles.endpointInput}
               spellCheck={false}
@@ -72,6 +81,9 @@ export default function TopBar({
               style={{ ...styles.runButton, ...(loading ? styles.runButtonDisabled : {}) }}
             >
               {loading ? 'Running…' : 'Run'}
+            </button>
+            <button onClick={onGenerateCurl} style={styles.curlButton}>
+              cURL
             </button>
           </>
         ) : (
@@ -201,6 +213,17 @@ const styles = {
     border: 'none',
     borderRadius: '4px',
     padding: '6px 16px',
+    fontSize: '13px',
+    fontFamily: 'monospace',
+    cursor: 'pointer',
+    flexShrink: 0,
+  },
+  curlButton: {
+    backgroundColor: 'transparent',
+    color: '#888',
+    border: '1px solid #3c3c3c',
+    borderRadius: '4px',
+    padding: '6px 12px',
     fontSize: '13px',
     fontFamily: 'monospace',
     cursor: 'pointer',
