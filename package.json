@@ -1,0 +1,14 @@
+{
+  "name": "mcp-debugger",
+  "version": "1.0.0",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "concurrently \"npm run dev --prefix app\" \"wait-on http://localhost:5173 && electron .\"",
+    "electron": "electron ."
+  },
+  "dependencies": {
+    "electron": "^28.0.0",
+    "concurrently": "^8.2.0",
+    "wait-on": "^7.2.0"
+  }
+}
