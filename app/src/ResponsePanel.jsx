@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 
 const TABS = ['Pretty', 'Raw'];
 
-export default function ResponsePanel({ response, rawResponse, isError }) {
+export default function ResponsePanel({ response, rawResponse, isError, toolExecution }) {
   const [activeTab, setActiveTab] = useState('Pretty');
 
   return (
@@ -18,13 +18,44 @@ export default function ResponsePanel({ response, rawResponse, isError }) {
           </button>
         ))}
       </div>
+
       <div style={styles.content}>
         {response === null ? (
           <p style={styles.placeholder}>Send a request to see the response.</p>
         ) : (
-          <pre style={{ ...styles.pre, ...(isError ? styles.error : {}) }}>
-            {activeTab === 'Pretty' ? response : rawResponse}
-          </pre>
+          <>
+            <pre style={{ ...styles.pre, ...(isError ? styles.error : {}) }}>
+              {activeTab === 'Pretty' ? response : rawResponse}
+            </pre>
+
+            {toolExecution && (
+              <div style={styles.toolSection}>
+                <p style={styles.toolHeader}>TOOL EXECUTION</p>
+                <div style={styles.toolGrid}>
+                  <span style={styles.toolKey}>Tool</span>
+                  <span style={styles.toolValue}>{toolExecution.name ?? '—'}</span>
+
+                  <span style={styles.toolKey}>Arguments</span>
+                  <pre style={styles.toolPre}>
+                    {toolExecution.arguments != null
+                      ? JSON.stringify(toolExecution.arguments, null, 2)
+                      : '—'}
+                  </pre>
+
+                  {toolExecution.output != null && (
+                    <>
+                      <span style={styles.toolKey}>Output</span>
+                      <pre style={styles.toolPre}>
+                        {typeof toolExecution.output === 'string'
+                          ? toolExecution.output
+                          : JSON.stringify(toolExecution.output, null, 2)}
+                      </pre>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
@@ -62,6 +93,9 @@ const styles = {
     flex: 1,
     overflow: 'auto',
     padding: '12px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px',
   },
   pre: {
     margin: 0,
@@ -80,5 +114,46 @@ const styles = {
     fontSize: '13px',
     fontFamily: 'monospace',
     margin: 0,
+  },
+  toolSection: {
+    borderTop: '1px solid #3c3c3c',
+    paddingTop: '12px',
+  },
+  toolHeader: {
+    fontSize: '10px',
+    fontWeight: 700,
+    letterSpacing: '0.1em',
+    color: '#555',
+    margin: '0 0 10px 0',
+  },
+  toolGrid: {
+    display: 'grid',
+    gridTemplateColumns: '80px 1fr',
+    gap: '6px 12px',
+    alignItems: 'start',
+  },
+  toolKey: {
+    fontSize: '11px',
+    color: '#888',
+    fontFamily: 'monospace',
+    paddingTop: '2px',
+  },
+  toolValue: {
+    fontSize: '13px',
+    color: '#4ec9b0',
+    fontFamily: 'monospace',
+  },
+  toolPre: {
+    margin: 0,
+    fontSize: '12px',
+    fontFamily: 'monospace',
+    whiteSpace: 'pre-wrap',
+    wordBreak: 'break-word',
+    color: '#dcdcaa',
+    lineHeight: '1.5',
+    backgroundColor: '#252526',
+    border: '1px solid #3c3c3c',
+    borderRadius: '4px',
+    padding: '8px',
   },
 };

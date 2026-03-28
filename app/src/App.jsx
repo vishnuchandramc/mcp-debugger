@@ -108,13 +108,22 @@ export default function App() {
   }
 
   async function handleRun() {
+    const hasBody = method !== 'GET' && method !== 'DELETE';
+
+    if (hasBody) {
+      try { JSON.parse(body); } catch (e) {
+        setResponse(`Invalid JSON: ${e.message}`);
+        setRawResponse(`Invalid JSON: ${e.message}`);
+        setIsError(true);
+        return;
+      }
+    }
+
     setLoading(true);
     setIsError(false);
     setResponse(null);
     setRawResponse(null);
     setToolExecution(null);
-
-    const hasBody = method !== 'GET' && method !== 'DELETE';
 
     try {
       const res = await fetch(endpoint, {
