@@ -215,6 +215,7 @@ export default function App() {
               rawResponse={rawResponse}
               isError={isError}
               toolExecution={toolExecution}
+              requestBody={body}
             />
           </div>
         </div>

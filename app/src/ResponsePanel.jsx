@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
+import ExecutionTimeline from './ExecutionTimeline.jsx';
 
-const TABS = ['Pretty', 'Raw'];
+const TABS = ['Pretty', 'Raw', 'Timeline'];
 
-export default function ResponsePanel({ response, rawResponse, isError, toolExecution }) {
+export default function ResponsePanel({ response, rawResponse, isError, toolExecution, requestBody }) {
   const [activeTab, setActiveTab] = useState('Pretty');
 
   return (
@@ -22,6 +23,12 @@ export default function ResponsePanel({ response, rawResponse, isError, toolExec
       <div style={styles.content}>
         {response === null ? (
           <p style={styles.placeholder}>Send a request to see the response.</p>
+        ) : activeTab === 'Timeline' ? (
+          <ExecutionTimeline
+            requestBody={requestBody}
+            response={response}
+            toolExecution={toolExecution}
+          />
         ) : (
           <>
             <pre style={{ ...styles.pre, ...(isError ? styles.error : {}) }}>
