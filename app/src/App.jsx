@@ -3,6 +3,8 @@ import TopBar from './TopBar.jsx';
 import RequestPanel from './RequestPanel.jsx';
 import ResponsePanel from './ResponsePanel.jsx';
 import { createMcpClient, callMcpTool, disconnectMcpClient, generateToolTemplate } from './mcpClient.js';
+import { Dialog, DialogContent, DialogTitle, DialogClose } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 
 const DEFAULT_ENDPOINT = 'https://jsonplaceholder.typicode.com/posts';
 const DEFAULT_BODY = JSON.stringify({ title: 'foo', body: 'bar', userId: 1 }, null, 2);
@@ -28,13 +30,11 @@ function tokenize(str) {
   const tokens = [];
   let i = 0;
   while (i < str.length) {
-    // Skip whitespace
     while (i < str.length && /\s/.test(str[i])) i++;
     if (i >= str.length) break;
 
     const ch = str[i];
     if (ch === '"' || ch === "'") {
-      // Quoted string
       const quote = ch;
       i++;
       let token = '';
@@ -47,10 +47,9 @@ function tokenize(str) {
           i++;
         }
       }
-      i++; // skip closing quote
+      i++;
       tokens.push(token);
     } else {
-      // Unquoted token
       let token = '';
       while (i < str.length && !/\s/.test(str[i])) {
         token += str[i];
@@ -421,12 +420,10 @@ export default function App() {
   // --- Mode switching ---
   function handleModeChange(newMode) {
     if (newMode === mode) return;
-    // Disconnect MCP when switching away
     if (mode === 'mcp' && mcpConnected) {
       handleDisconnect();
     }
     setMode(newMode);
-    // Reset response display
     setResponse(null);
     setRawResponse(null);
     setIsError(false);
@@ -436,7 +433,7 @@ export default function App() {
   const currentOnRun = mode === 'http' ? handleRun : handleMcpRun;
 
   return (
-    <div style={styles.app} onMouseMove={onMouseMove} onMouseUp={onMouseUp}>
+    <div className="flex flex-col h-screen bg-background text-foreground font-mono overflow-hidden" onMouseMove={onMouseMove} onMouseUp={onMouseUp}>
       <TopBar
         mode={mode}
         setMode={handleModeChange}
@@ -457,52 +454,51 @@ export default function App() {
         onCurlImport={handleCurlImport}
       />
 
-      <div style={styles.body}>
-        <aside style={styles.sidebar}>
+      <div className="flex flex-1 overflow-hidden">
+        <aside className="w-[180px] shrink-0 border-r border-border p-3 overflow-y-auto">
           {mode === 'http' ? (
             <>
-              <p style={styles.sidebarLabel}>HISTORY</p>
+              <p className="text-[10px] font-bold tracking-widest text-[#555] m-0 mb-2">HISTORY</p>
               {history.length === 0 ? (
-                <p style={styles.sidebarEmpty}>No requests yet.</p>
+                <p className="text-xs text-[#444] m-0">No requests yet.</p>
               ) : (
                 history.map((item, i) => (
                   <button
                     key={i}
                     onClick={() => loadHistoryItem(item)}
-                    style={styles.historyItem}
+                    className="flex flex-col gap-0.5 w-full bg-transparent border border-transparent rounded p-1.5 px-2 mb-1 cursor-pointer text-left hover:border-border"
                     title={item.endpoint}
                   >
-                    <span style={{ ...styles.historyMethod, color: METHOD_COLORS[item.method] }}>
+                    <span className="text-[10px] font-bold font-mono" style={{ color: METHOD_COLORS[item.method] }}>
                       {item.method}
                     </span>
-                    <span style={styles.historyUrl}>{shortUrl(item.endpoint)}</span>
+                    <span className="text-[11px] text-muted-foreground font-mono overflow-hidden text-ellipsis whitespace-nowrap">{shortUrl(item.endpoint)}</span>
                   </button>
                 ))
               )}
             </>
           ) : (
             <>
-              <p style={styles.sidebarLabel}>TOOLS</p>
+              <p className="text-[10px] font-bold tracking-widest text-[#555] m-0 mb-2">TOOLS</p>
               {!mcpConnected ? (
-                <p style={styles.sidebarEmpty}>Connect to discover tools.</p>
+                <p className="text-xs text-[#444] m-0">Connect to discover tools.</p>
               ) : mcpTools.length === 0 ? (
-                <p style={styles.sidebarEmpty}>No tools available.</p>
+                <p className="text-xs text-[#444] m-0">No tools available.</p>
               ) : (
                 mcpTools.map((tool) => (
                   <button
                     key={tool.name}
                     onClick={() => handleToolSelect(tool)}
-                    style={{
-                      ...styles.toolItem,
-                      ...(selectedTool?.name === tool.name ? styles.toolItemSelected : {}),
-                    }}
+                    className={`flex flex-col gap-0.5 w-full bg-transparent border border-transparent rounded p-1.5 px-2 mb-1 cursor-pointer text-left ${
+                      selectedTool?.name === tool.name ? 'bg-[#094771] !border-primary' : 'hover:border-border'
+                    }`}
                     title={tool.description || tool.name}
                   >
-                    <span style={styles.toolName}>{tool.name}</span>
+                    <span className="text-[11px] font-bold font-mono text-[#4ec9b0]">{tool.name}</span>
                     {tool.description && (
-                      <span style={styles.toolDesc}>
+                      <span className="text-[10px] text-muted-foreground font-mono overflow-hidden text-ellipsis whitespace-nowrap">
                         {tool.description.length > 40
-                          ? tool.description.slice(0, 40) + '…'
+                          ? tool.description.slice(0, 40) + '\u2026'
                           : tool.description}
                       </span>
                     )}
@@ -513,9 +509,9 @@ export default function App() {
           )}
         </aside>
 
-        <div style={styles.panels} ref={containerRef}>
-          <div style={{ ...styles.panel, width: `${leftWidth}%` }}>
-            <div style={styles.panelHeader}>REQUEST</div>
+        <div className="flex flex-1 overflow-hidden" ref={containerRef}>
+          <div className="flex flex-col overflow-hidden min-w-0" style={{ width: `${leftWidth}%` }}>
+            <div className="text-[10px] font-bold tracking-widest text-[#555] px-4 pt-2 pb-1 shrink-0">REQUEST</div>
             <RequestPanel
               body={body} setBody={setBody}
               headers={headers} setHeaders={setHeaders}
@@ -525,10 +521,10 @@ export default function App() {
             />
           </div>
 
-          <div style={styles.divider} onMouseDown={onMouseDown} title="Drag to resize" />
+          <div className="w-1 shrink-0 bg-border cursor-col-resize" onMouseDown={onMouseDown} title="Drag to resize" />
 
-          <div style={{ ...styles.panel, width: `${100 - leftWidth}%` }}>
-            <div style={styles.panelHeader}>RESPONSE</div>
+          <div className="flex flex-col overflow-hidden min-w-0" style={{ width: `${100 - leftWidth}%` }}>
+            <div className="text-[10px] font-bold tracking-widest text-[#555] px-4 pt-2 pb-1 shrink-0">RESPONSE</div>
             <ResponsePanel
               response={response}
               rawResponse={rawResponse}
@@ -540,20 +536,22 @@ export default function App() {
         </div>
       </div>
 
-      {showCurl && (
-        <div style={styles.modalOverlay} onClick={() => setShowCurl(false)}>
-          <div style={styles.modalCard} onClick={(e) => e.stopPropagation()}>
-            <div style={styles.modalHeader}>
-              <span style={styles.modalTitle}>cURL Command</span>
-              <button onClick={() => setShowCurl(false)} style={styles.modalClose}>&times;</button>
-            </div>
-            <pre style={styles.modalPre}>{curlCommand}</pre>
-            <button onClick={handleCurlCopy} style={styles.modalCopyButton}>
-              {curlCopied ? 'Copied!' : 'Copy'}
-            </button>
+      <Dialog open={showCurl} onOpenChange={setShowCurl}>
+        <DialogContent>
+          <div className="flex justify-between items-center mb-3">
+            <DialogTitle>cURL Command</DialogTitle>
+            <DialogClose className="bg-transparent border-none text-muted-foreground text-xl cursor-pointer px-1">
+              &times;
+            </DialogClose>
           </div>
-        </div>
-      )}
+          <pre className="bg-background border border-border rounded p-3 text-foreground text-xs font-mono whitespace-pre-wrap break-all overflow-y-auto flex-1 m-0">
+            {curlCommand}
+          </pre>
+          <Button onClick={handleCurlCopy} className="mt-3 self-end">
+            {curlCopied ? 'Copied!' : 'Copy'}
+          </Button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -574,189 +572,3 @@ function shortUrl(url) {
     return url.slice(0, 22);
   }
 }
-
-const styles = {
-  app: {
-    display: 'flex',
-    flexDirection: 'column',
-    height: '100vh',
-    backgroundColor: '#1e1e1e',
-    color: '#d4d4d4',
-    fontFamily: 'monospace',
-    overflow: 'hidden',
-  },
-  body: {
-    display: 'flex',
-    flex: 1,
-    overflow: 'hidden',
-  },
-  sidebar: {
-    width: '180px',
-    flexShrink: 0,
-    borderRight: '1px solid #3c3c3c',
-    padding: '12px',
-    overflowY: 'auto',
-  },
-  sidebarLabel: {
-    fontSize: '10px',
-    fontWeight: 700,
-    letterSpacing: '0.1em',
-    color: '#555',
-    margin: '0 0 8px 0',
-  },
-  sidebarEmpty: {
-    fontSize: '12px',
-    color: '#444',
-    margin: 0,
-  },
-  historyItem: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '2px',
-    width: '100%',
-    background: 'none',
-    border: '1px solid transparent',
-    borderRadius: '4px',
-    padding: '6px 8px',
-    marginBottom: '4px',
-    cursor: 'pointer',
-    textAlign: 'left',
-  },
-  historyMethod: {
-    fontSize: '10px',
-    fontWeight: 700,
-    fontFamily: 'monospace',
-  },
-  historyUrl: {
-    fontSize: '11px',
-    color: '#888',
-    fontFamily: 'monospace',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-  toolItem: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '2px',
-    width: '100%',
-    background: 'none',
-    border: '1px solid transparent',
-    borderRadius: '4px',
-    padding: '6px 8px',
-    marginBottom: '4px',
-    cursor: 'pointer',
-    textAlign: 'left',
-  },
-  toolItemSelected: {
-    backgroundColor: '#094771',
-    borderColor: '#0e639c',
-  },
-  toolName: {
-    fontSize: '11px',
-    fontWeight: 700,
-    fontFamily: 'monospace',
-    color: '#4ec9b0',
-  },
-  toolDesc: {
-    fontSize: '10px',
-    color: '#888',
-    fontFamily: 'monospace',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-  panels: {
-    display: 'flex',
-    flex: 1,
-    overflow: 'hidden',
-  },
-  panel: {
-    display: 'flex',
-    flexDirection: 'column',
-    overflow: 'hidden',
-    minWidth: 0,
-  },
-  panelHeader: {
-    fontSize: '10px',
-    fontWeight: 700,
-    letterSpacing: '0.1em',
-    color: '#555',
-    padding: '8px 16px 4px',
-    flexShrink: 0,
-  },
-  divider: {
-    width: '4px',
-    flexShrink: 0,
-    backgroundColor: '#3c3c3c',
-    cursor: 'col-resize',
-  },
-  modalOverlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000,
-  },
-  modalCard: {
-    backgroundColor: '#252526',
-    border: '1px solid #3c3c3c',
-    borderRadius: '8px',
-    padding: '20px',
-    maxWidth: '600px',
-    width: '90%',
-    maxHeight: '80vh',
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  modalHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '12px',
-  },
-  modalTitle: {
-    fontSize: '14px',
-    fontWeight: 700,
-    color: '#d4d4d4',
-  },
-  modalClose: {
-    background: 'none',
-    border: 'none',
-    color: '#888',
-    fontSize: '20px',
-    cursor: 'pointer',
-    padding: '0 4px',
-  },
-  modalPre: {
-    backgroundColor: '#1e1e1e',
-    border: '1px solid #3c3c3c',
-    borderRadius: '4px',
-    padding: '12px',
-    color: '#d4d4d4',
-    fontSize: '12px',
-    fontFamily: 'monospace',
-    whiteSpace: 'pre-wrap',
-    wordBreak: 'break-all',
-    overflowY: 'auto',
-    flex: 1,
-    margin: 0,
-  },
-  modalCopyButton: {
-    marginTop: '12px',
-    backgroundColor: '#0e639c',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '4px',
-    padding: '6px 20px',
-    fontSize: '13px',
-    fontFamily: 'monospace',
-    cursor: 'pointer',
-    alignSelf: 'flex-end',
-  },
-};

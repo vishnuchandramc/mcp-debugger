@@ -12,6 +12,7 @@ export default defineConfig({
       // The MCP SDK imports 'eventsource' (a Node polyfill).
       // Redirect to browser-native EventSource.
       eventsource: path.resolve(__dirname, 'src/eventsource-polyfill.js'),
+      '@': path.resolve(__dirname, 'src'),
     },
   },
 });

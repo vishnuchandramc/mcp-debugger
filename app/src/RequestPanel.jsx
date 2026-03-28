@@ -1,5 +1,9 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 
 const HTTP_TABS = ['Body', 'Headers'];
 const MCP_TABS = ['Body', 'Headers', 'Context'];
@@ -111,47 +115,45 @@ export default function RequestPanel({ body, setBody, headers, setHeaders, conte
     }
   }, [setContext]);
 
-  return (
-    <div style={styles.panel}>
-      <div style={styles.tabBar}>
-        {(mode === 'mcp' ? MCP_TABS : HTTP_TABS).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            style={{ ...styles.tab, ...(activeTab === tab ? styles.tabActive : {}) }}
-          >
-            {tab}
-          </button>
-        ))}
-        {activeTab === 'Body' && (
-          <div style={styles.tabActions}>
-            <button onClick={handleFormat} style={styles.actionBtn}>Format</button>
-            <select onChange={handleTemplate} style={styles.templateSelect} defaultValue="">
-              <option value="" disabled>Templates</option>
-              {Object.keys(TEMPLATES).map((name) => (
-                <option key={name} value={name}>{name}</option>
-              ))}
-            </select>
-          </div>
-        )}
-      </div>
+  const tabs = mode === 'mcp' ? MCP_TABS : HTTP_TABS;
 
-      {activeTab === 'Body' && (
-        <div style={styles.editorWrapper}>
+  return (
+    <div className="flex flex-col h-full overflow-hidden">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <div className="flex items-center border-b border-border shrink-0">
+          <TabsList className="border-none">
+            {tabs.map((tab) => (
+              <TabsTrigger key={tab} value={tab}>{tab}</TabsTrigger>
+            ))}
+          </TabsList>
+          {activeTab === 'Body' && (
+            <div className="ml-auto mr-3 flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={handleFormat}>Format</Button>
+              <Select onChange={handleTemplate} defaultValue="">
+                <option value="" disabled>Templates</option>
+                {Object.keys(TEMPLATES).map((name) => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </Select>
+            </div>
+          )}
+        </div>
+
+        <TabsContent value="Body" className="flex-1 flex flex-col overflow-hidden p-3 gap-2">
           {selectedTool && (
-            <div style={styles.toolBanner}>
-              <span style={styles.toolBannerName}>{selectedTool.name}</span>
+            <div className="bg-[#1a2a3a] text-foreground border border-[#264f78] rounded px-2.5 py-1.5 text-xs font-mono shrink-0">
+              <span className="text-[#4ec9b0] font-bold">{selectedTool.name}</span>
               {selectedTool.description && (
-                <span style={styles.toolBannerDesc}> — {selectedTool.description}</span>
+                <span className="text-muted-foreground"> — {selectedTool.description}</span>
               )}
             </div>
           )}
           {jsonError && (
-            <div style={styles.errorBanner}>
-              <span style={styles.errorIcon}>⚠</span> {jsonError}
+            <div className="bg-[#3a1a1a] text-[#f48771] border border-[#5a2a2a] rounded px-2.5 py-1.5 text-xs font-mono shrink-0">
+              <span className="mr-1">⚠</span> {jsonError}
             </div>
           )}
-          <div style={styles.editorContainer}>
+          <div className="flex-1 border border-border rounded overflow-hidden">
             <Editor
               defaultValue={body}
               language="json"
@@ -172,50 +174,48 @@ export default function RequestPanel({ body, setBody, headers, setHeaders, conte
               }}
             />
           </div>
-        </div>
-      )}
+        </TabsContent>
 
-      {activeTab === 'Headers' && (
-        <div style={styles.headersWrapper}>
-          <div style={styles.headersToolbar}>
-            <button onClick={handleAddHeader} style={styles.actionBtn}>+ Add Header</button>
+        <TabsContent value="Headers" className="flex-1 flex flex-col overflow-hidden p-3 gap-2">
+          <div className="flex justify-end shrink-0">
+            <Button variant="outline" size="sm" onClick={handleAddHeader}>+ Add Header</Button>
           </div>
-          <div style={styles.headerRows}>
+          <div className="flex-1 flex flex-col gap-1.5 overflow-y-auto">
             {headers.map((header, i) => (
-              <div key={i} style={styles.headerRow}>
-                <input
-                  style={styles.headerInput}
+              <div key={i} className="flex gap-2 items-center">
+                <Input
+                  className="flex-1"
                   placeholder="Header name"
                   value={header.key}
                   onChange={(e) => handleHeaderChange(i, 'key', e.target.value)}
                 />
-                <input
-                  style={{ ...styles.headerInput, flex: 2 }}
+                <Input
+                  className="flex-[2]"
                   placeholder="Value"
                   value={header.value}
                   onChange={(e) => handleHeaderChange(i, 'value', e.target.value)}
                 />
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={() => handleRemoveHeader(i)}
-                  style={styles.removeBtn}
                   title="Remove header"
+                  className="text-[#666]"
                 >
                   ×
-                </button>
+                </Button>
               </div>
             ))}
           </div>
-        </div>
-      )}
+        </TabsContent>
 
-      {activeTab === 'Context' && (
-        <div style={styles.editorWrapper}>
+        <TabsContent value="Context" className="flex-1 flex flex-col overflow-hidden p-3 gap-2">
           {contextError && (
-            <div style={styles.errorBanner}>
-              <span style={styles.errorIcon}>⚠</span> {contextError}
+            <div className="bg-[#3a1a1a] text-[#f48771] border border-[#5a2a2a] rounded px-2.5 py-1.5 text-xs font-mono shrink-0">
+              <span className="mr-1">⚠</span> {contextError}
             </div>
           )}
-          <div style={styles.editorContainer}>
+          <div className="flex-1 border border-border rounded overflow-hidden">
             <Editor
               defaultValue={context}
               language="json"
@@ -236,156 +236,8 @@ export default function RequestPanel({ body, setBody, headers, setHeaders, conte
               }}
             />
           </div>
-        </div>
-      )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
-
-const styles = {
-  panel: {
-    display: 'flex',
-    flexDirection: 'column',
-    height: '100%',
-    overflow: 'hidden',
-  },
-  tabBar: {
-    display: 'flex',
-    alignItems: 'center',
-    borderBottom: '1px solid #3c3c3c',
-    flexShrink: 0,
-  },
-  tab: {
-    background: 'none',
-    border: 'none',
-    borderBottom: '2px solid transparent',
-    color: '#888',
-    padding: '8px 16px',
-    fontSize: '12px',
-    fontFamily: 'monospace',
-    cursor: 'pointer',
-    marginBottom: '-1px',
-  },
-  tabActive: {
-    color: '#d4d4d4',
-    borderBottomColor: '#0e639c',
-  },
-  tabActions: {
-    marginLeft: 'auto',
-    marginRight: '12px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-  },
-  actionBtn: {
-    backgroundColor: 'transparent',
-    color: '#888',
-    border: '1px solid #3c3c3c',
-    borderRadius: '4px',
-    padding: '3px 10px',
-    fontSize: '11px',
-    fontFamily: 'monospace',
-    cursor: 'pointer',
-  },
-  templateSelect: {
-    backgroundColor: '#2d2d2d',
-    color: '#888',
-    border: '1px solid #3c3c3c',
-    borderRadius: '4px',
-    padding: '3px 8px',
-    fontSize: '11px',
-    fontFamily: 'monospace',
-    cursor: 'pointer',
-    outline: 'none',
-  },
-  editorWrapper: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    overflow: 'hidden',
-    padding: '12px',
-    gap: '8px',
-  },
-  toolBanner: {
-    backgroundColor: '#1a2a3a',
-    color: '#d4d4d4',
-    border: '1px solid #264f78',
-    borderRadius: '4px',
-    padding: '6px 10px',
-    fontSize: '12px',
-    fontFamily: 'monospace',
-    flexShrink: 0,
-  },
-  toolBannerName: {
-    color: '#4ec9b0',
-    fontWeight: 700,
-  },
-  toolBannerDesc: {
-    color: '#888',
-  },
-  errorBanner: {
-    backgroundColor: '#3a1a1a',
-    color: '#f48771',
-    border: '1px solid #5a2a2a',
-    borderRadius: '4px',
-    padding: '6px 10px',
-    fontSize: '12px',
-    fontFamily: 'monospace',
-    flexShrink: 0,
-  },
-  errorIcon: {
-    marginRight: '4px',
-  },
-  editorContainer: {
-    flex: 1,
-    border: '1px solid #3c3c3c',
-    borderRadius: '4px',
-    overflow: 'hidden',
-  },
-  headersWrapper: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    overflow: 'hidden',
-    padding: '12px',
-    gap: '8px',
-  },
-  headersToolbar: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    flexShrink: 0,
-  },
-  headerRows: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '6px',
-    overflowY: 'auto',
-  },
-  headerRow: {
-    display: 'flex',
-    gap: '8px',
-    alignItems: 'center',
-  },
-  headerInput: {
-    flex: 1,
-    backgroundColor: '#2d2d2d',
-    color: '#d4d4d4',
-    border: '1px solid #3c3c3c',
-    borderRadius: '4px',
-    padding: '6px 10px',
-    fontSize: '13px',
-    fontFamily: 'monospace',
-    outline: 'none',
-  },
-  removeBtn: {
-    background: 'none',
-    border: 'none',
-    color: '#666',
-    fontSize: '18px',
-    cursor: 'pointer',
-    padding: '2px 6px',
-    lineHeight: 1,
-    borderRadius: '4px',
-  },
-};

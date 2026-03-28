@@ -1,0 +1,34 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: hsl(0 0% 12%);
+  --color-foreground: hsl(0 0% 83%);
+  --color-card: hsl(240 3% 15%);
+  --color-primary: hsl(206 82% 33%);
+  --color-primary-foreground: hsl(0 0% 100%);
+  --color-secondary: hsl(0 0% 18%);
+  --color-muted: hsl(0 0% 18%);
+  --color-muted-foreground: hsl(0 0% 53%);
+  --color-accent: hsl(206 82% 33%);
+  --color-destructive: hsl(0 53% 27%);
+  --color-destructive-foreground: hsl(0 0% 100%);
+  --color-border: hsl(0 0% 24%);
+  --color-input: hsl(0 0% 24%);
+  --color-popover: hsl(240 3% 15%);
+  --radius: 0.25rem;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: monospace;
+}
+
+/* Prevent Tailwind base reset from breaking Monaco editor */
+.monaco-editor *,
+.monaco-editor *::before,
+.monaco-editor *::after {
+  border-style: revert;
+}
