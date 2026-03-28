@@ -6,8 +6,24 @@ import { createMcpClient, callMcpTool, disconnectMcpClient, generateToolTemplate
 
 const DEFAULT_ENDPOINT = 'https://jsonplaceholder.typicode.com/posts';
 const DEFAULT_BODY = JSON.stringify({ title: 'foo', body: 'bar', userId: 1 }, null, 2);
+const DEFAULT_HEADERS = [{ key: '', value: '' }];
+const DEFAULT_CONTEXT = JSON.stringify({ system: '', messages: [] }, null, 2);
 const HISTORY_KEY = 'mcp_debugger_history';
 const MAX_HISTORY = 5;
+
+function buildHeadersObject(headerRows, includeContentType) {
+  const result = {};
+  if (includeContentType) {
+    result['Content-Type'] = 'application/json';
+  }
+  for (const { key, value } of headerRows) {
+    const trimmed = key.trim();
+    if (trimmed) {
+      result[trimmed] = value;
+    }
+  }
+  return result;
+}
 
 function extractToolExecution(parsed) {
   if (!parsed || typeof parsed !== 'object') return null;
@@ -82,6 +98,8 @@ export default function App() {
   // --- HTTP state ---
   const [endpoint, setEndpoint] = useState(DEFAULT_ENDPOINT);
   const [method, setMethod] = useState('POST');
+  const [headers, setHeaders] = useState(DEFAULT_HEADERS);
+  const [context, setContext] = useState(DEFAULT_CONTEXT);
   const [history, setHistory] = useState(loadHistory);
 
   // --- Mode state ---
@@ -145,6 +163,7 @@ export default function App() {
     setEndpoint(item.endpoint);
     setMethod(item.method);
     setBody(item.body);
+    setHeaders(item.headers ?? DEFAULT_HEADERS);
   }
 
   async function handleRun() {
@@ -168,7 +187,7 @@ export default function App() {
     try {
       const res = await fetch(endpoint, {
         method,
-        headers: hasBody ? { 'Content-Type': 'application/json' } : {},
+        headers: buildHeadersObject(headers, hasBody),
         body: hasBody ? body : undefined,
       });
 
@@ -184,7 +203,7 @@ export default function App() {
       }
 
       setToolExecution(extractToolExecution(parsed));
-      pushHistory({ endpoint, method, body, timestamp: Date.now() });
+      pushHistory({ endpoint, method, body, headers, timestamp: Date.now() });
     } catch (e) {
       const msg = `Network error: ${e.message}`;
       setResponse(msg);
@@ -377,7 +396,13 @@ export default function App() {
         <div style={styles.panels} ref={containerRef}>
           <div style={{ ...styles.panel, width: `${leftWidth}%` }}>
             <div style={styles.panelHeader}>REQUEST</div>
-            <RequestPanel body={body} setBody={setBody} selectedTool={selectedTool} />
+            <RequestPanel
+              body={body} setBody={setBody}
+              headers={headers} setHeaders={setHeaders}
+              context={context} setContext={setContext}
+              selectedTool={selectedTool}
+              mode={mode}
+            />
           </div>
 
           <div style={styles.divider} onMouseDown={onMouseDown} title="Drag to resize" />

@@ -1,7 +1,8 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 
-const TABS = ['Body', 'Headers', 'Context'];
+const HTTP_TABS = ['Body', 'Headers'];
+const MCP_TABS = ['Body', 'Headers', 'Context'];
 
 const TEMPLATES = {
   'Basic Request': JSON.stringify(
@@ -31,10 +32,18 @@ const TEMPLATES = {
   ),
 };
 
-export default function RequestPanel({ body, setBody, selectedTool }) {
+export default function RequestPanel({ body, setBody, headers, setHeaders, context, setContext, selectedTool, mode }) {
   const [activeTab, setActiveTab] = useState('Body');
   const [jsonError, setJsonError] = useState(null);
+  const [contextError, setContextError] = useState(null);
   const editorRef = useRef(null);
+  const contextEditorRef = useRef(null);
+
+  useEffect(() => {
+    if (mode !== 'mcp' && activeTab === 'Context') {
+      setActiveTab('Body');
+    }
+  }, [mode, activeTab]);
 
   const handleEditorMount = useCallback((editor) => {
     editorRef.current = editor;
@@ -71,10 +80,41 @@ export default function RequestPanel({ body, setBody, selectedTool }) {
     }
   }
 
+  function handleHeaderChange(index, field, value) {
+    const next = headers.map((h, i) => i === index ? { ...h, [field]: value } : h);
+    setHeaders(next);
+  }
+
+  function handleAddHeader() {
+    setHeaders([...headers, { key: '', value: '' }]);
+  }
+
+  function handleRemoveHeader(index) {
+    if (headers.length <= 1) {
+      setHeaders([{ key: '', value: '' }]);
+      return;
+    }
+    setHeaders(headers.filter((_, i) => i !== index));
+  }
+
+  const handleContextMount = useCallback((editor) => {
+    contextEditorRef.current = editor;
+  }, []);
+
+  const handleContextChange = useCallback((value) => {
+    setContext(value ?? '');
+    try {
+      JSON.parse(value);
+      setContextError(null);
+    } catch (e) {
+      setContextError(e.message);
+    }
+  }, [setContext]);
+
   return (
     <div style={styles.panel}>
       <div style={styles.tabBar}>
-        {TABS.map((tab) => (
+        {(mode === 'mcp' ? MCP_TABS : HTTP_TABS).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -136,10 +176,67 @@ export default function RequestPanel({ body, setBody, selectedTool }) {
       )}
 
       {activeTab === 'Headers' && (
-        <div style={styles.placeholder}>Headers editor coming soon.</div>
+        <div style={styles.headersWrapper}>
+          <div style={styles.headersToolbar}>
+            <button onClick={handleAddHeader} style={styles.actionBtn}>+ Add Header</button>
+          </div>
+          <div style={styles.headerRows}>
+            {headers.map((header, i) => (
+              <div key={i} style={styles.headerRow}>
+                <input
+                  style={styles.headerInput}
+                  placeholder="Header name"
+                  value={header.key}
+                  onChange={(e) => handleHeaderChange(i, 'key', e.target.value)}
+                />
+                <input
+                  style={{ ...styles.headerInput, flex: 2 }}
+                  placeholder="Value"
+                  value={header.value}
+                  onChange={(e) => handleHeaderChange(i, 'value', e.target.value)}
+                />
+                <button
+                  onClick={() => handleRemoveHeader(i)}
+                  style={styles.removeBtn}
+                  title="Remove header"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
+
       {activeTab === 'Context' && (
-        <div style={styles.placeholder}>AI context configuration coming soon.</div>
+        <div style={styles.editorWrapper}>
+          {contextError && (
+            <div style={styles.errorBanner}>
+              <span style={styles.errorIcon}>⚠</span> {contextError}
+            </div>
+          )}
+          <div style={styles.editorContainer}>
+            <Editor
+              defaultValue={context}
+              language="json"
+              theme="vs-dark"
+              onMount={handleContextMount}
+              onChange={handleContextChange}
+              options={{
+                fontSize: 13,
+                fontFamily: 'monospace',
+                minimap: { enabled: false },
+                scrollBeyondLastLine: false,
+                lineNumbers: 'on',
+                renderLineHighlight: 'line',
+                tabSize: 2,
+                wordWrap: 'on',
+                automaticLayout: true,
+                padding: { top: 10, bottom: 10 },
+              }}
+            />
+          </div>
+        </div>
       )}
     </div>
   );
@@ -245,10 +342,50 @@ const styles = {
     borderRadius: '4px',
     overflow: 'hidden',
   },
-  placeholder: {
-    color: '#555',
+  headersWrapper: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',
+    padding: '12px',
+    gap: '8px',
+  },
+  headersToolbar: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    flexShrink: 0,
+  },
+  headerRows: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px',
+    overflowY: 'auto',
+  },
+  headerRow: {
+    display: 'flex',
+    gap: '8px',
+    alignItems: 'center',
+  },
+  headerInput: {
+    flex: 1,
+    backgroundColor: '#2d2d2d',
+    color: '#d4d4d4',
+    border: '1px solid #3c3c3c',
+    borderRadius: '4px',
+    padding: '6px 10px',
     fontSize: '13px',
     fontFamily: 'monospace',
-    padding: '12px',
+    outline: 'none',
+  },
+  removeBtn: {
+    background: 'none',
+    border: 'none',
+    color: '#666',
+    fontSize: '18px',
+    cursor: 'pointer',
+    padding: '2px 6px',
+    lineHeight: 1,
+    borderRadius: '4px',
   },
 };
