@@ -1,6 +1,7 @@
 import React from 'react';
 
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
+const MODES = ['HTTP', 'MCP'];
 
 const METHOD_COLORS = {
   GET: '#4ec9b0',
@@ -10,37 +11,111 @@ const METHOD_COLORS = {
   DELETE: '#f48771',
 };
 
-export default function TopBar({ endpoint, setEndpoint, method, setMethod, onRun, loading }) {
+export default function TopBar({
+  mode,
+  setMode,
+  endpoint,
+  setEndpoint,
+  method,
+  setMethod,
+  onRun,
+  loading,
+  mcpUrl,
+  setMcpUrl,
+  mcpConnected,
+  mcpConnecting,
+  onConnect,
+  onDisconnect,
+  selectedTool,
+}) {
   return (
     <div style={styles.bar}>
       <span style={styles.appName}>MCP Debugger</span>
       <div style={styles.requestRow}>
+        {/* Mode selector */}
         <select
-          value={method}
-          onChange={(e) => setMethod(e.target.value)}
-          style={{ ...styles.methodSelect, color: METHOD_COLORS[method] }}
+          value={mode.toUpperCase()}
+          onChange={(e) => setMode(e.target.value.toLowerCase())}
+          style={styles.modeSelect}
         >
-          {METHODS.map((m) => (
-            <option key={m} value={m} style={{ color: METHOD_COLORS[m] }}>
+          {MODES.map((m) => (
+            <option key={m} value={m}>
               {m}
             </option>
           ))}
         </select>
-        <input
-          type="text"
-          value={endpoint}
-          onChange={(e) => setEndpoint(e.target.value)}
-          placeholder="https://example.com/api/endpoint"
-          style={styles.endpointInput}
-          spellCheck={false}
-        />
-        <button
-          onClick={onRun}
-          disabled={loading}
-          style={{ ...styles.runButton, ...(loading ? styles.runButtonDisabled : {}) }}
-        >
-          {loading ? 'Running…' : 'Run'}
-        </button>
+
+        {mode === 'http' ? (
+          <>
+            <select
+              value={method}
+              onChange={(e) => setMethod(e.target.value)}
+              style={{ ...styles.methodSelect, color: METHOD_COLORS[method] }}
+            >
+              {METHODS.map((m) => (
+                <option key={m} value={m} style={{ color: METHOD_COLORS[m] }}>
+                  {m}
+                </option>
+              ))}
+            </select>
+            <input
+              type="text"
+              value={endpoint}
+              onChange={(e) => setEndpoint(e.target.value)}
+              placeholder="https://example.com/api/endpoint"
+              style={styles.endpointInput}
+              spellCheck={false}
+            />
+            <button
+              onClick={onRun}
+              disabled={loading}
+              style={{ ...styles.runButton, ...(loading ? styles.runButtonDisabled : {}) }}
+            >
+              {loading ? 'Running…' : 'Run'}
+            </button>
+          </>
+        ) : (
+          <>
+            <input
+              type="text"
+              value={mcpUrl}
+              onChange={(e) => setMcpUrl(e.target.value)}
+              placeholder="http://localhost:3000/sse"
+              style={styles.endpointInput}
+              spellCheck={false}
+              disabled={mcpConnected || mcpConnecting}
+            />
+            {!mcpConnected ? (
+              <button
+                onClick={onConnect}
+                disabled={mcpConnecting}
+                style={{
+                  ...styles.connectButton,
+                  ...(mcpConnecting ? styles.runButtonDisabled : {}),
+                }}
+              >
+                {mcpConnecting ? 'Connecting…' : 'Connect'}
+              </button>
+            ) : (
+              <button
+                onClick={onDisconnect}
+                style={styles.disconnectButton}
+              >
+                Disconnect
+              </button>
+            )}
+            <button
+              onClick={onRun}
+              disabled={loading || !mcpConnected || !selectedTool}
+              style={{
+                ...styles.runButton,
+                ...(loading || !mcpConnected || !selectedTool ? styles.runButtonDisabled : {}),
+              }}
+            >
+              {loading ? 'Running…' : 'Run'}
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -68,6 +143,19 @@ const styles = {
     alignItems: 'center',
     gap: '8px',
     flex: 1,
+  },
+  modeSelect: {
+    backgroundColor: '#1a3a4a',
+    color: '#569cd6',
+    border: '1px solid #3c3c3c',
+    borderRadius: '4px',
+    padding: '6px 8px',
+    fontSize: '12px',
+    fontWeight: 700,
+    fontFamily: 'monospace',
+    cursor: 'pointer',
+    outline: 'none',
+    flexShrink: 0,
   },
   methodSelect: {
     backgroundColor: '#2d2d2d',
@@ -106,5 +194,27 @@ const styles = {
   runButtonDisabled: {
     backgroundColor: '#3c3c3c',
     cursor: 'not-allowed',
+  },
+  connectButton: {
+    backgroundColor: '#0e639c',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '4px',
+    padding: '6px 16px',
+    fontSize: '13px',
+    fontFamily: 'monospace',
+    cursor: 'pointer',
+    flexShrink: 0,
+  },
+  disconnectButton: {
+    backgroundColor: '#6c2020',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '4px',
+    padding: '6px 16px',
+    fontSize: '13px',
+    fontFamily: 'monospace',
+    cursor: 'pointer',
+    flexShrink: 0,
   },
 };

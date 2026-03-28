@@ -2,6 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import TopBar from './TopBar.jsx';
 import RequestPanel from './RequestPanel.jsx';
 import ResponsePanel from './ResponsePanel.jsx';
+import { createMcpClient, callMcpTool, disconnectMcpClient, generateToolTemplate } from './mcpClient.js';
 
 const DEFAULT_ENDPOINT = 'https://jsonplaceholder.typicode.com/posts';
 const DEFAULT_BODY = JSON.stringify({ title: 'foo', body: 'bar', userId: 1 }, null, 2);
@@ -11,7 +12,6 @@ const MAX_HISTORY = 5;
 function extractToolExecution(parsed) {
   if (!parsed || typeof parsed !== 'object') return null;
 
-  // Claude API format: { content: [{ type: "tool_use", name, input }] }
   const content = parsed.content;
   if (Array.isArray(content)) {
     const toolUse = content.find((c) => c.type === 'tool_use');
@@ -24,7 +24,6 @@ function extractToolExecution(parsed) {
     }
   }
 
-  // OpenAI format: { choices: [{ message: { tool_calls: [{ function: { name, arguments } }] } }] }
   const choices = parsed.choices;
   if (Array.isArray(choices) && choices[0]?.message?.tool_calls?.length) {
     const tc = choices[0].message.tool_calls[0];
@@ -37,7 +36,6 @@ function extractToolExecution(parsed) {
     };
   }
 
-  // OpenAI legacy function_call format: { choices: [{ message: { function_call: { name, arguments } } }] }
   if (Array.isArray(choices) && choices[0]?.message?.function_call) {
     const fc = choices[0].message.function_call;
     let args = fc.arguments;
@@ -49,7 +47,6 @@ function extractToolExecution(parsed) {
     };
   }
 
-  // Generic: top-level tool/tool_name/tool_call/function_call field
   if (parsed.tool || parsed.tool_name || parsed.tool_call || parsed.function_call) {
     return {
       name: parsed.tool_name ?? parsed.tool ?? parsed.tool_call?.name ?? parsed.function_call?.name ?? 'unknown',
@@ -74,19 +71,49 @@ function saveHistory(history) {
 }
 
 export default function App() {
-  const [endpoint, setEndpoint] = useState(DEFAULT_ENDPOINT);
-  const [method, setMethod] = useState('POST');
+  // --- Shared state ---
   const [body, setBody] = useState(DEFAULT_BODY);
   const [response, setResponse] = useState(null);
   const [rawResponse, setRawResponse] = useState(null);
   const [loading, setLoading] = useState(false);
   const [isError, setIsError] = useState(false);
   const [toolExecution, setToolExecution] = useState(null);
+
+  // --- HTTP state ---
+  const [endpoint, setEndpoint] = useState(DEFAULT_ENDPOINT);
+  const [method, setMethod] = useState('POST');
   const [history, setHistory] = useState(loadHistory);
 
+  // --- Mode state ---
+  const [mode, setMode] = useState('http');
+
+  // --- MCP state ---
+  const [mcpUrl, setMcpUrl] = useState('http://localhost:3000/sse');
+  const [mcpClient, setMcpClient] = useState(null);
+  const [mcpTools, setMcpTools] = useState([]);
+  const [selectedTool, setSelectedTool] = useState(null);
+  const [mcpConnected, setMcpConnected] = useState(false);
+  const [mcpConnecting, setMcpConnecting] = useState(false);
+
+  // --- Layout state ---
   const [leftWidth, setLeftWidth] = useState(50);
   const dragging = useRef(false);
   const containerRef = useRef(null);
+  const mcpClientRef = useRef(null);
+
+  // Keep ref in sync for cleanup
+  useEffect(() => {
+    mcpClientRef.current = mcpClient;
+  }, [mcpClient]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (mcpClientRef.current) {
+        disconnectMcpClient(mcpClientRef.current);
+      }
+    };
+  }, []);
 
   const onMouseDown = useCallback(() => {
     dragging.current = true;
@@ -107,6 +134,7 @@ export default function App() {
     document.body.style.userSelect = '';
   }, []);
 
+  // --- HTTP handlers ---
   function pushHistory(entry) {
     const next = [entry, ...history].slice(0, MAX_HISTORY);
     setHistory(next);
@@ -167,43 +195,189 @@ export default function App() {
     }
   }
 
+  // --- MCP handlers ---
+  async function handleConnect() {
+    setMcpConnecting(true);
+    setIsError(false);
+    setResponse(null);
+    setRawResponse(null);
+    setToolExecution(null);
+
+    try {
+      const { client, tools } = await createMcpClient(mcpUrl);
+      setMcpClient(client);
+      setMcpTools(tools);
+      setMcpConnected(true);
+      setSelectedTool(null);
+    } catch (e) {
+      const msg = `MCP connection error: ${e.message}`;
+      setResponse(msg);
+      setRawResponse(msg);
+      setIsError(true);
+      setMcpClient(null);
+      setMcpTools([]);
+      setMcpConnected(false);
+    } finally {
+      setMcpConnecting(false);
+    }
+  }
+
+  async function handleDisconnect() {
+    if (mcpClient) {
+      await disconnectMcpClient(mcpClient);
+    }
+    setMcpClient(null);
+    setMcpTools([]);
+    setSelectedTool(null);
+    setMcpConnected(false);
+    setResponse(null);
+    setRawResponse(null);
+    setToolExecution(null);
+  }
+
+  function handleToolSelect(tool) {
+    setSelectedTool(tool);
+    const template = generateToolTemplate(tool);
+    setBody(template);
+  }
+
+  async function handleMcpRun() {
+    if (!mcpClient || !selectedTool) return;
+
+    let args;
+    try {
+      args = JSON.parse(body);
+    } catch (e) {
+      setResponse(`Invalid JSON: ${e.message}`);
+      setRawResponse(`Invalid JSON: ${e.message}`);
+      setIsError(true);
+      return;
+    }
+
+    setLoading(true);
+    setIsError(false);
+    setResponse(null);
+    setRawResponse(null);
+    setToolExecution(null);
+
+    try {
+      const result = await callMcpTool(mcpClient, selectedTool.name, args);
+      const raw = JSON.stringify(result, null, 2);
+      setRawResponse(raw);
+      setResponse(raw);
+
+      setToolExecution({
+        name: selectedTool.name,
+        arguments: args,
+        output: result.content ?? result,
+      });
+    } catch (e) {
+      const msg = `MCP tool error: ${e.message}`;
+      setResponse(msg);
+      setRawResponse(msg);
+      setIsError(true);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // --- Mode switching ---
+  function handleModeChange(newMode) {
+    if (newMode === mode) return;
+    // Disconnect MCP when switching away
+    if (mode === 'mcp' && mcpConnected) {
+      handleDisconnect();
+    }
+    setMode(newMode);
+    // Reset response display
+    setResponse(null);
+    setRawResponse(null);
+    setIsError(false);
+    setToolExecution(null);
+  }
+
+  const currentOnRun = mode === 'http' ? handleRun : handleMcpRun;
+
   return (
     <div style={styles.app} onMouseMove={onMouseMove} onMouseUp={onMouseUp}>
       <TopBar
+        mode={mode}
+        setMode={handleModeChange}
         endpoint={endpoint}
         setEndpoint={setEndpoint}
         method={method}
         setMethod={setMethod}
-        onRun={handleRun}
+        onRun={currentOnRun}
         loading={loading}
+        mcpUrl={mcpUrl}
+        setMcpUrl={setMcpUrl}
+        mcpConnected={mcpConnected}
+        mcpConnecting={mcpConnecting}
+        onConnect={handleConnect}
+        onDisconnect={handleDisconnect}
+        selectedTool={selectedTool}
       />
 
       <div style={styles.body}>
         <aside style={styles.sidebar}>
-          <p style={styles.sidebarLabel}>HISTORY</p>
-          {history.length === 0 ? (
-            <p style={styles.sidebarEmpty}>No requests yet.</p>
+          {mode === 'http' ? (
+            <>
+              <p style={styles.sidebarLabel}>HISTORY</p>
+              {history.length === 0 ? (
+                <p style={styles.sidebarEmpty}>No requests yet.</p>
+              ) : (
+                history.map((item, i) => (
+                  <button
+                    key={i}
+                    onClick={() => loadHistoryItem(item)}
+                    style={styles.historyItem}
+                    title={item.endpoint}
+                  >
+                    <span style={{ ...styles.historyMethod, color: METHOD_COLORS[item.method] }}>
+                      {item.method}
+                    </span>
+                    <span style={styles.historyUrl}>{shortUrl(item.endpoint)}</span>
+                  </button>
+                ))
+              )}
+            </>
           ) : (
-            history.map((item, i) => (
-              <button
-                key={i}
-                onClick={() => loadHistoryItem(item)}
-                style={styles.historyItem}
-                title={item.endpoint}
-              >
-                <span style={{ ...styles.historyMethod, color: METHOD_COLORS[item.method] }}>
-                  {item.method}
-                </span>
-                <span style={styles.historyUrl}>{shortUrl(item.endpoint)}</span>
-              </button>
-            ))
+            <>
+              <p style={styles.sidebarLabel}>TOOLS</p>
+              {!mcpConnected ? (
+                <p style={styles.sidebarEmpty}>Connect to discover tools.</p>
+              ) : mcpTools.length === 0 ? (
+                <p style={styles.sidebarEmpty}>No tools available.</p>
+              ) : (
+                mcpTools.map((tool) => (
+                  <button
+                    key={tool.name}
+                    onClick={() => handleToolSelect(tool)}
+                    style={{
+                      ...styles.toolItem,
+                      ...(selectedTool?.name === tool.name ? styles.toolItemSelected : {}),
+                    }}
+                    title={tool.description || tool.name}
+                  >
+                    <span style={styles.toolName}>{tool.name}</span>
+                    {tool.description && (
+                      <span style={styles.toolDesc}>
+                        {tool.description.length > 40
+                          ? tool.description.slice(0, 40) + '…'
+                          : tool.description}
+                      </span>
+                    )}
+                  </button>
+                ))
+              )}
+            </>
           )}
         </aside>
 
         <div style={styles.panels} ref={containerRef}>
           <div style={{ ...styles.panel, width: `${leftWidth}%` }}>
             <div style={styles.panelHeader}>REQUEST</div>
-            <RequestPanel body={body} setBody={setBody} />
+            <RequestPanel body={body} setBody={setBody} selectedTool={selectedTool} />
           </div>
 
           <div style={styles.divider} onMouseDown={onMouseDown} title="Drag to resize" />
@@ -295,6 +469,37 @@ const styles = {
   },
   historyUrl: {
     fontSize: '11px',
+    color: '#888',
+    fontFamily: 'monospace',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+  toolItem: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '2px',
+    width: '100%',
+    background: 'none',
+    border: '1px solid transparent',
+    borderRadius: '4px',
+    padding: '6px 8px',
+    marginBottom: '4px',
+    cursor: 'pointer',
+    textAlign: 'left',
+  },
+  toolItemSelected: {
+    backgroundColor: '#094771',
+    borderColor: '#0e639c',
+  },
+  toolName: {
+    fontSize: '11px',
+    fontWeight: 700,
+    fontFamily: 'monospace',
+    color: '#4ec9b0',
+  },
+  toolDesc: {
+    fontSize: '10px',
     color: '#888',
     fontFamily: 'monospace',
     overflow: 'hidden',

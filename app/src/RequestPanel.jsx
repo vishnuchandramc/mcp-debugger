@@ -31,7 +31,7 @@ const TEMPLATES = {
   ),
 };
 
-export default function RequestPanel({ body, setBody }) {
+export default function RequestPanel({ body, setBody, selectedTool }) {
   const [activeTab, setActiveTab] = useState('Body');
   const [jsonError, setJsonError] = useState(null);
   const editorRef = useRef(null);
@@ -98,6 +98,14 @@ export default function RequestPanel({ body, setBody }) {
 
       {activeTab === 'Body' && (
         <div style={styles.editorWrapper}>
+          {selectedTool && (
+            <div style={styles.toolBanner}>
+              <span style={styles.toolBannerName}>{selectedTool.name}</span>
+              {selectedTool.description && (
+                <span style={styles.toolBannerDesc}> — {selectedTool.description}</span>
+              )}
+            </div>
+          )}
           {jsonError && (
             <div style={styles.errorBanner}>
               <span style={styles.errorIcon}>⚠</span> {jsonError}
@@ -200,6 +208,23 @@ const styles = {
     overflow: 'hidden',
     padding: '12px',
     gap: '8px',
+  },
+  toolBanner: {
+    backgroundColor: '#1a2a3a',
+    color: '#d4d4d4',
+    border: '1px solid #264f78',
+    borderRadius: '4px',
+    padding: '6px 10px',
+    fontSize: '12px',
+    fontFamily: 'monospace',
+    flexShrink: 0,
+  },
+  toolBannerName: {
+    color: '#4ec9b0',
+    fontWeight: 700,
+  },
+  toolBannerDesc: {
+    color: '#888',
   },
   errorBanner: {
     backgroundColor: '#3a1a1a',
