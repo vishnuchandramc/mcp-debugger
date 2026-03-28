@@ -37,11 +37,23 @@ function extractToolExecution(parsed) {
     };
   }
 
-  // Generic: top-level tool/tool_name/tool_call field
-  if (parsed.tool || parsed.tool_name || parsed.tool_call) {
+  // OpenAI legacy function_call format: { choices: [{ message: { function_call: { name, arguments } } }] }
+  if (Array.isArray(choices) && choices[0]?.message?.function_call) {
+    const fc = choices[0].message.function_call;
+    let args = fc.arguments;
+    try { args = JSON.parse(args); } catch { /* leave as string */ }
     return {
-      name: parsed.tool_name ?? parsed.tool ?? parsed.tool_call?.name ?? 'unknown',
-      arguments: parsed.arguments ?? parsed.input ?? parsed.tool_call?.arguments ?? null,
+      name: fc.name,
+      arguments: args ?? null,
+      output: null,
+    };
+  }
+
+  // Generic: top-level tool/tool_name/tool_call/function_call field
+  if (parsed.tool || parsed.tool_name || parsed.tool_call || parsed.function_call) {
+    return {
+      name: parsed.tool_name ?? parsed.tool ?? parsed.tool_call?.name ?? parsed.function_call?.name ?? 'unknown',
+      arguments: parsed.arguments ?? parsed.input ?? parsed.tool_call?.arguments ?? parsed.function_call?.arguments ?? null,
       output: parsed.output ?? parsed.result ?? null,
     };
   }

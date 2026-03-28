@@ -28,9 +28,9 @@ export default function ResponsePanel({ response, rawResponse, isError, toolExec
               {activeTab === 'Pretty' ? response : rawResponse}
             </pre>
 
-            {toolExecution && (
-              <div style={styles.toolSection}>
-                <p style={styles.toolHeader}>TOOL EXECUTION</p>
+            <div style={styles.toolSection}>
+              <p style={styles.toolHeader}>TOOL EXECUTION</p>
+              {toolExecution ? (
                 <div style={styles.toolGrid}>
                   <span style={styles.toolKey}>Tool</span>
                   <span style={styles.toolValue}>{toolExecution.name ?? '—'}</span>
@@ -53,8 +53,10 @@ export default function ResponsePanel({ response, rawResponse, isError, toolExec
                     </>
                   )}
                 </div>
-              </div>
-            )}
+              ) : (
+                <p style={styles.noTool}>No tool execution detected</p>
+              )}
+            </div>
           </>
         )}
       </div>
@@ -142,6 +144,13 @@ const styles = {
     fontSize: '13px',
     color: '#4ec9b0',
     fontFamily: 'monospace',
+  },
+  noTool: {
+    fontSize: '12px',
+    color: '#555',
+    fontFamily: 'monospace',
+    margin: 0,
+    fontStyle: 'italic',
   },
   toolPre: {
     margin: 0,
