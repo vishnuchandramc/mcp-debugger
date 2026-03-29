@@ -13,6 +13,13 @@ export default function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, onN
   const [editingTabId, setEditingTabId] = useState(null);
   const [editValue, setEditValue] = useState('');
   const inputRef = useRef(null);
+  const [contextMenu, setContextMenu] = useState(null);
+
+  useEffect(() => {
+    const handleClick = () => setContextMenu(null);
+    window.addEventListener('click', handleClick);
+    return () => window.removeEventListener('click', handleClick);
+  }, []);
 
   useEffect(() => {
     if (editingTabId != null && inputRef.current) {
@@ -54,6 +61,20 @@ export default function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, onN
               key={tab.id}
               style={{ WebkitAppRegion: 'no-drag' }}
               onClick={() => onSelectTab(tab.id)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setContextMenu({
+                  tabId: tab.id,
+                  x: e.clientX,
+                  y: e.clientY
+                });
+              }}
+              onAuxClick={(e) => {
+                if (e.button === 1 && tabs.length > 1) {
+                  e.preventDefault();
+                  onCloseTab(tab.id);
+                }
+              }}
               className={cn(
                 "group relative flex items-center justify-start gap-1.5 px-2 bg-transparent border-y border-x border-zinc-800 text-zinc-500 text-[11px] font-semibold cursor-pointer hover:bg-zinc-800/50 outline-none transition-colors border-t-transparent border-b-transparent rounded-t-lg -ml-px h-full flex-1 min-w-[40px] max-w-[240px] overflow-hidden whitespace-nowrap",
                 isActive ? "bg-zinc-900 text-zinc-100 hover:bg-zinc-900" : "",
@@ -106,7 +127,7 @@ export default function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, onN
                     e.stopPropagation();
                     onCloseTab(tab.id);
                   }}
-                  className="flex items-center justify-center w-4 h-4 rounded-sm text-zinc-500 hover:bg-zinc-700/50 hover:text-red-400 ml-0.5"
+                  className="flex items-center justify-center w-4 h-4 shrink-0 rounded-sm text-zinc-500 hover:bg-zinc-700/50 hover:text-red-400 ml-0.5"
                   title="Close tab"
                 >
                   <svg width="8" height="8" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -126,6 +147,55 @@ export default function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, onN
           +
         </button>
       </div>
+      
+      {contextMenu && (
+        <div 
+          className="fixed z-50 min-w-[160px] bg-zinc-900 border border-zinc-700 shadow-2xl rounded-md py-1.5 text-[12px] text-zinc-300"
+          style={{ 
+            top: contextMenu.y, 
+            left: contextMenu.x,
+            WebkitAppRegion: 'no-drag'
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button 
+            onClick={() => {
+              if (tabs.length > 1) onCloseTab(contextMenu.tabId);
+              setContextMenu(null);
+            }}
+            disabled={tabs.length <= 1}
+            className="w-full text-left px-3 py-1.5 hover:bg-zinc-800 disabled:opacity-50 disabled:hover:bg-transparent cursor-pointer border-none outline-none font-medium"
+          >
+            Close Tab
+          </button>
+          <button 
+            onClick={() => {
+              tabs.forEach(t => {
+                if (t.id !== contextMenu.tabId) onCloseTab(t.id);
+              });
+              setContextMenu(null);
+            }}
+            disabled={tabs.length <= 1}
+            className="w-full text-left px-3 py-1.5 hover:bg-zinc-800 disabled:opacity-50 disabled:hover:bg-transparent cursor-pointer border-none outline-none font-medium"
+          >
+            Close Other Tabs
+          </button>
+          <div className="h-[1px] bg-zinc-800 my-1" />
+          <button 
+            onClick={() => {
+              const tab = tabs.find(t => t.id === contextMenu.tabId);
+              if (tab) {
+                onSelectTab(tab.id);
+                startEditing(tab);
+              }
+              setContextMenu(null);
+            }}
+            className="w-full text-left px-3 py-1.5 hover:bg-zinc-800 cursor-pointer border-none outline-none font-medium"
+          >
+            Rename Tab...
+          </button>
+        </div>
+      )}
     </div>
   );
 }
