@@ -254,15 +254,20 @@ export default function App() {
 
   const activeTabIdRef = useRef(activeTabId);
   const activeTabRef = useRef(activeTab);
+  const handleNewTabRef = useRef(null);
 
   useEffect(() => {
     activeTabIdRef.current = activeTabId;
     activeTabRef.current = activeTab;
-  }, [activeTabId, activeTab]);
+    handleNewTabRef.current = handleNewTab;
+  });
 
   useEffect(() => {
     if (window.electronAPI) {
       window.electronAPI.onOpenSettings(() => setShowSettings(true));
+      window.electronAPI.onNewTab(() => {
+        if (handleNewTabRef.current) handleNewTabRef.current();
+      });
       window.electronAPI.onImportData((parsedData) => {
         setTabs(prev => prev.map(t => t.id === activeTabIdRef.current ? { ...t, ...parsedData } : t));
       });

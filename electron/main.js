@@ -2,6 +2,8 @@ const { app, BrowserWindow, Menu, dialog, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
+let mainWindow = null;
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1200,
@@ -14,6 +16,16 @@ function createWindow() {
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js')
     },
+  });
+
+  if (!mainWindow) {
+    mainWindow = win;
+  }
+  
+  win.on('closed', () => {
+    if (mainWindow === win) {
+      mainWindow = null;
+    }
   });
 
   win.loadURL('http://localhost:5173');
@@ -44,9 +56,24 @@ function createWindow() {
       label: 'File', 
       submenu: [ 
         {
+          label: 'New Tab',
+          accelerator: 'CmdOrCtrl+T',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow() || mainWindow || createWindow();
+            win.webContents.send('new-tab');
+          }
+        },
+        {
+          label: 'New Window',
+          accelerator: 'CmdOrCtrl+N',
+          click: () => createWindow()
+        },
+        { type: 'separator' },
+        {
           label: 'Import Request...',
           accelerator: 'CmdOrCtrl+O',
           click: async () => {
+            const win = BrowserWindow.getFocusedWindow() || mainWindow || createWindow();
             const { canceled, filePaths } = await dialog.showOpenDialog(win, {
               properties: ['openFile'],
               filters: [{ name: 'JSON', extensions: ['json'] }]
@@ -62,10 +89,14 @@ function createWindow() {
             }
           }
         },
+        { type: 'separator' },
         {
           label: 'Export Request...',
           accelerator: 'CmdOrCtrl+S',
-          click: () => win.webContents.send('trigger-export')
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow() || mainWindow;
+            if (win) win.webContents.send('trigger-export');
+          }
         },
         { type: 'separator' },
         isMac ? { role: 'close' } : { role: 'quit' } 
@@ -76,6 +107,8 @@ function createWindow() {
     { label: 'Window', submenu: [ { role: 'minimize' }, { role: 'zoom' }, ...(isMac ? [ { type: 'separator' }, { role: 'front' }, { type: 'separator' }, { role: 'window' } ] : [ { role: 'close' } ]) ] },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+  
+  return win;
 }
 
 ipcMain.handle('save-file', async (event, data, defaultName) => {
