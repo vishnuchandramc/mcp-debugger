@@ -9,6 +9,7 @@ const DEFAULT_ENDPOINT = '';
 const DEFAULT_BODY = '';
 const DEFAULT_HEADERS = [{ key: '', value: '' }];
 const DEFAULT_CONTEXT = JSON.stringify({ system: '', messages: [] }, null, 2);
+const DEFAULT_AUTH = { type: 'none', token: '', apiKey: { key: '', value: '', addTo: 'header' } };
 const HISTORY_KEY = 'mcp_debugger_history';
 const TABS_KEY = 'mcp_debugger_tabs';
 const MAX_HISTORY = 5;
@@ -95,6 +96,26 @@ function parseCurl(curlStr) {
   return { method, url, headers, body };
 }
 
+function applyAuth(auth, headersObj, endpoint) {
+  if (!auth || auth.type === 'none') return { headers: headersObj, endpoint };
+  if (auth.type === 'bearer' && auth.token.trim()) {
+    headersObj['Authorization'] = 'Bearer ' + auth.token.trim();
+  } else if (auth.type === 'apikey' && auth.apiKey.key.trim() && auth.apiKey.value.trim()) {
+    if (auth.apiKey.addTo === 'query') {
+      try {
+        const url = new URL(endpoint);
+        url.searchParams.set(auth.apiKey.key.trim(), auth.apiKey.value.trim());
+        return { headers: headersObj, endpoint: url.toString() };
+      } catch {
+        // If URL is invalid, fall through without modifying
+      }
+    } else {
+      headersObj[auth.apiKey.key.trim()] = auth.apiKey.value.trim();
+    }
+  }
+  return { headers: headersObj, endpoint };
+}
+
 function buildHeadersObject(headerRows, includeContentType) {
   const result = {};
   if (includeContentType) {
@@ -170,7 +191,7 @@ function saveHistory(history) {
   localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
 }
 
-const SAVEABLE_TAB_FIELDS = ['id', 'name', 'method', 'endpoint', 'body', 'headers', 'context'];
+const SAVEABLE_TAB_FIELDS = ['id', 'name', 'method', 'endpoint', 'body', 'headers', 'context', 'auth'];
 
 function loadTabs() {
   try {
@@ -178,6 +199,7 @@ function loadTabs() {
     if (saved && Array.isArray(saved.tabs) && saved.tabs.length > 0) {
       const tabs = saved.tabs.map(t => ({
         ...Object.fromEntries(SAVEABLE_TAB_FIELDS.map(f => [f, t[f]])),
+        auth: { ...DEFAULT_AUTH, ...t.auth, apiKey: { ...DEFAULT_AUTH.apiKey, ...(t.auth?.apiKey) } },
         response: null, rawResponse: null, isError: false,
         toolExecution: null, loading: false,
       }));
@@ -201,7 +223,7 @@ export default function App() {
   const [tabs, setTabs] = useState(() => saved.current?.tabs ?? [{
     id: 1, name: 'Untitled 1',
     method: 'POST', endpoint: DEFAULT_ENDPOINT,
-    body: DEFAULT_BODY, headers: DEFAULT_HEADERS, context: DEFAULT_CONTEXT,
+    body: DEFAULT_BODY, headers: DEFAULT_HEADERS, context: DEFAULT_CONTEXT, auth: DEFAULT_AUTH,
     response: null, rawResponse: null, isError: false,
     toolExecution: null, loading: false,
   }]);
@@ -232,6 +254,7 @@ export default function App() {
   const setBody = (v) => updateActiveTab({ body: v });
   const setHeaders = (v) => updateActiveTab({ headers: v });
   const setContext = (v) => updateActiveTab({ context: v });
+  const setAuth = (v) => updateActiveTab({ auth: v });
 
   // --- Tab management ---
   function handleNewTab() {
@@ -240,7 +263,7 @@ export default function App() {
     const tab = {
       id, name: `Untitled ${num}`,
       method: 'POST', endpoint: DEFAULT_ENDPOINT,
-      body: DEFAULT_BODY, headers: DEFAULT_HEADERS, context: DEFAULT_CONTEXT,
+      body: DEFAULT_BODY, headers: DEFAULT_HEADERS, context: DEFAULT_CONTEXT, auth: DEFAULT_AUTH,
       response: null, rawResponse: null, isError: false,
       toolExecution: null, loading: false,
     };
@@ -356,9 +379,11 @@ export default function App() {
     setTabField({ loading: true, isError: false, response: null, rawResponse: null, toolExecution: null });
 
     try {
-      const res = await fetch(ep, {
+      const headersObj = buildHeadersObject(h, hasBody);
+      const { headers: finalHeaders, endpoint: finalEndpoint } = applyAuth(tab.auth, headersObj, ep);
+      const res = await fetch(finalEndpoint, {
         method: m,
-        headers: buildHeadersObject(h, hasBody),
+        headers: finalHeaders,
         body: hasBody ? b : undefined,
       });
 
@@ -500,7 +525,7 @@ export default function App() {
       savedHttpState.current = tabs.map(t => ({
         id: t.id,
         method: t.method, endpoint: t.endpoint,
-        body: t.body, headers: t.headers, context: t.context,
+        body: t.body, headers: t.headers, context: t.context, auth: t.auth,
       }));
       // Clear active tab to fresh MCP state
       updateActiveTab({
@@ -625,6 +650,7 @@ export default function App() {
               body={activeTab.body} setBody={setBody}
               headers={activeTab.headers} setHeaders={setHeaders}
               context={activeTab.context} setContext={setContext}
+              auth={activeTab.auth} setAuth={setAuth}
               selectedTool={selectedTool}
               mode={mode}
             />

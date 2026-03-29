@@ -11,7 +11,7 @@ function isFormCompatibleSchema(schema) {
   );
 }
 
-const HTTP_TABS = ['Body', 'Headers'];
+const HTTP_TABS = ['Body', 'Headers', 'Auth'];
 const MCP_TABS = ['Body', 'Headers', 'Context'];
 
 const TEMPLATES = {
@@ -42,7 +42,7 @@ const TEMPLATES = {
   ),
 };
 
-export default function RequestPanel({ body, setBody, headers, setHeaders, context, setContext, selectedTool, mode }) {
+export default function RequestPanel({ body, setBody, headers, setHeaders, context, setContext, auth, setAuth, selectedTool, mode }) {
   const [activeTab, setActiveTab] = useState('Body');
   const [jsonError, setJsonError] = useState(null);
   const [contextError, setContextError] = useState(null);
@@ -269,6 +269,80 @@ export default function RequestPanel({ body, setBody, headers, setHeaders, conte
         </div>
       )}
 
+      {activeTab === 'Auth' && (
+        <div style={styles.headersWrapper}>
+          <div style={styles.headerRow}>
+            <label style={styles.authLabel}>Type</label>
+            <select
+              style={styles.authSelect}
+              value={auth?.type ?? 'none'}
+              onChange={(e) => {
+                const newType = e.target.value;
+                setAuth({
+                  type: newType,
+                  token: auth?.token ?? '',
+                  apiKey: auth?.apiKey ?? { key: '', value: '', addTo: 'header' },
+                });
+              }}
+            >
+              <option value="none">None</option>
+              <option value="bearer">Bearer Token</option>
+              <option value="apikey">API Key</option>
+            </select>
+          </div>
+
+          {auth?.type === 'bearer' && (
+            <div style={styles.headerRow}>
+              <label style={styles.authLabel}>Token</label>
+              <input
+                style={{ ...styles.headerInput, flex: 2 }}
+                placeholder="Enter bearer token"
+                value={auth.token}
+                onChange={(e) => setAuth({ ...auth, token: e.target.value })}
+              />
+            </div>
+          )}
+
+          {auth?.type === 'apikey' && auth.apiKey && (
+            <>
+              <div style={styles.headerRow}>
+                <label style={styles.authLabel}>Key</label>
+                <input
+                  style={styles.headerInput}
+                  placeholder="e.g. X-API-Key"
+                  value={auth.apiKey.key ?? ''}
+                  onChange={(e) => setAuth({ ...auth, apiKey: { ...auth.apiKey, key: e.target.value } })}
+                />
+              </div>
+              <div style={styles.headerRow}>
+                <label style={styles.authLabel}>Value</label>
+                <input
+                  style={{ ...styles.headerInput, flex: 2 }}
+                  placeholder="Enter API key value"
+                  value={auth.apiKey.value ?? ''}
+                  onChange={(e) => setAuth({ ...auth, apiKey: { ...auth.apiKey, value: e.target.value } })}
+                />
+              </div>
+              <div style={styles.headerRow}>
+                <label style={styles.authLabel}>Add to</label>
+                <select
+                  style={styles.authSelect}
+                  value={auth.apiKey.addTo ?? 'header'}
+                  onChange={(e) => setAuth({ ...auth, apiKey: { ...auth.apiKey, addTo: e.target.value } })}
+                >
+                  <option value="header">Header</option>
+                  <option value="query">Query Param</option>
+                </select>
+              </div>
+            </>
+          )}
+
+          {auth?.type === 'none' && (
+            <p style={styles.authNoneText}>No authentication</p>
+          )}
+        </div>
+      )}
+
       {activeTab === 'Context' && (
         <div style={styles.editorWrapper}>
           {contextError && (
@@ -448,6 +522,30 @@ const styles = {
     fontSize: '13px',
     fontFamily: 'monospace',
     outline: 'none',
+  },
+  authLabel: {
+    fontSize: '12px',
+    fontFamily: 'monospace',
+    color: '#888',
+    minWidth: '60px',
+    flexShrink: 0,
+  },
+  authSelect: {
+    backgroundColor: '#2d2d2d',
+    color: '#d4d4d4',
+    border: '1px solid #3c3c3c',
+    borderRadius: '4px',
+    padding: '6px 10px',
+    fontSize: '13px',
+    fontFamily: 'monospace',
+    outline: 'none',
+    cursor: 'pointer',
+  },
+  authNoneText: {
+    fontSize: '12px',
+    color: '#555',
+    fontFamily: 'monospace',
+    margin: '8px 0 0 0',
   },
   removeBtn: {
     background: 'none',
