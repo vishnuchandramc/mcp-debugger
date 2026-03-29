@@ -1,14 +1,16 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import TopBar from './TopBar.jsx';
+import TabBar from './TabBar.jsx';
 import RequestPanel from './RequestPanel.jsx';
 import ResponsePanel from './ResponsePanel.jsx';
 import { createMcpClient, callMcpTool, disconnectMcpClient, generateToolTemplate } from './mcpClient.js';
 
-const DEFAULT_ENDPOINT = 'https://jsonplaceholder.typicode.com/posts';
-const DEFAULT_BODY = JSON.stringify({ title: 'foo', body: 'bar', userId: 1 }, null, 2);
+const DEFAULT_ENDPOINT = '';
+const DEFAULT_BODY = '';
 const DEFAULT_HEADERS = [{ key: '', value: '' }];
 const DEFAULT_CONTEXT = JSON.stringify({ system: '', messages: [] }, null, 2);
 const HISTORY_KEY = 'mcp_debugger_history';
+const TABS_KEY = 'mcp_debugger_tabs';
 const MAX_HISTORY = 5;
 
 function generateCurl({ method, url, headers, body }) {
@@ -168,20 +170,101 @@ function saveHistory(history) {
   localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
 }
 
-export default function App() {
-  // --- Shared state ---
-  const [body, setBody] = useState(DEFAULT_BODY);
-  const [response, setResponse] = useState(null);
-  const [rawResponse, setRawResponse] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [isError, setIsError] = useState(false);
-  const [toolExecution, setToolExecution] = useState(null);
+const SAVEABLE_TAB_FIELDS = ['id', 'name', 'method', 'endpoint', 'body', 'headers', 'context'];
 
-  // --- HTTP state ---
-  const [endpoint, setEndpoint] = useState(DEFAULT_ENDPOINT);
-  const [method, setMethod] = useState('POST');
-  const [headers, setHeaders] = useState(DEFAULT_HEADERS);
-  const [context, setContext] = useState(DEFAULT_CONTEXT);
+function loadTabs() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(TABS_KEY));
+    if (saved && Array.isArray(saved.tabs) && saved.tabs.length > 0) {
+      const tabs = saved.tabs.map(t => ({
+        ...Object.fromEntries(SAVEABLE_TAB_FIELDS.map(f => [f, t[f]])),
+        response: null, rawResponse: null, isError: false,
+        toolExecution: null, loading: false,
+      }));
+      return { tabs, activeTabId: saved.activeTabId, nextId: saved.nextId, nextTabNumber: saved.nextTabNumber };
+    }
+  } catch { /* ignore */ }
+  return null;
+}
+
+function saveTabs(tabs, activeTabId, nextId, nextTabNumber) {
+  const saveable = tabs.map(t => Object.fromEntries(SAVEABLE_TAB_FIELDS.map(f => [f, t[f]])));
+  localStorage.setItem(TABS_KEY, JSON.stringify({ tabs: saveable, activeTabId, nextId, nextTabNumber }));
+}
+
+export default function App() {
+  // --- Tab state ---
+  const saved = useRef(loadTabs());
+  const nextId = useRef(saved.current?.nextId ?? 2);
+  const nextTabNumber = useRef(saved.current?.nextTabNumber ?? 2);
+
+  const [tabs, setTabs] = useState(() => saved.current?.tabs ?? [{
+    id: 1, name: 'Untitled 1',
+    method: 'POST', endpoint: DEFAULT_ENDPOINT,
+    body: DEFAULT_BODY, headers: DEFAULT_HEADERS, context: DEFAULT_CONTEXT,
+    response: null, rawResponse: null, isError: false,
+    toolExecution: null, loading: false,
+  }]);
+  const [activeTabId, setActiveTabId] = useState(() => saved.current?.activeTabId ?? 1);
+
+  const activeTab = tabs.find(t => t.id === activeTabId);
+
+  function updateTab(tabId, fields) {
+    setTabs(prev => prev.map(t => t.id === tabId ? { ...t, ...fields } : t));
+  }
+
+  function updateActiveTab(fields) {
+    updateTab(activeTabId, fields);
+  }
+
+  // --- Persist tabs to localStorage ---
+  useEffect(() => {
+    saveTabs(tabs, activeTabId, nextId.current, nextTabNumber.current);
+  }, [tabs, activeTabId]);
+
+  function handleRenameTab(id, newName) {
+    updateTab(id, { name: newName });
+  }
+
+  // Individual setters that delegate to updateActiveTab (preserves child component interfaces)
+  const setMethod = (v) => updateActiveTab({ method: v });
+  const setEndpoint = (v) => updateActiveTab({ endpoint: v });
+  const setBody = (v) => updateActiveTab({ body: v });
+  const setHeaders = (v) => updateActiveTab({ headers: v });
+  const setContext = (v) => updateActiveTab({ context: v });
+
+  // --- Tab management ---
+  function handleNewTab() {
+    const id = nextId.current++;
+    const num = nextTabNumber.current++;
+    const tab = {
+      id, name: `Untitled ${num}`,
+      method: 'POST', endpoint: DEFAULT_ENDPOINT,
+      body: DEFAULT_BODY, headers: DEFAULT_HEADERS, context: DEFAULT_CONTEXT,
+      response: null, rawResponse: null, isError: false,
+      toolExecution: null, loading: false,
+    };
+    setTabs(prev => [...prev, tab]);
+    setActiveTabId(id);
+  }
+
+  function handleCloseTab(id) {
+    setTabs(prev => {
+      if (prev.length <= 1) return prev;
+      const idx = prev.findIndex(t => t.id === id);
+      const next = prev.filter(t => t.id !== id);
+      if (id === activeTabId) {
+        const newIdx = Math.min(idx, next.length - 1);
+        setActiveTabId(next[newIdx].id);
+      }
+      return next;
+    });
+  }
+
+  function handleSelectTab(id) {
+    setActiveTabId(id);
+  }
+
   const [history, setHistory] = useState(loadHistory);
 
   // --- Mode state ---
@@ -247,67 +330,60 @@ export default function App() {
   }
 
   function loadHistoryItem(item) {
-    setEndpoint(item.endpoint);
-    setMethod(item.method);
-    setBody(item.body);
-    setHeaders(item.headers ?? DEFAULT_HEADERS);
+    updateActiveTab({
+      endpoint: item.endpoint,
+      method: item.method,
+      body: item.body,
+      headers: item.headers ?? DEFAULT_HEADERS,
+    });
   }
 
   async function handleRun() {
-    const hasBody = method !== 'GET' && method !== 'DELETE';
+    const tabId = activeTabId;
+    const tab = tabs.find(t => t.id === tabId);
+    const { method: m, endpoint: ep, body: b, headers: h } = tab;
+    const setTabField = (fields) => updateTab(tabId, fields);
+    const hasBody = m !== 'GET' && m !== 'DELETE';
 
     if (hasBody) {
-      try { JSON.parse(body); } catch (e) {
-        setResponse(`Invalid JSON: ${e.message}`);
-        setRawResponse(`Invalid JSON: ${e.message}`);
-        setIsError(true);
+      try { JSON.parse(b); } catch (e) {
+        setTabField({ response: `Invalid JSON: ${e.message}`, rawResponse: `Invalid JSON: ${e.message}`, isError: true });
         return;
       }
     }
 
-    setLoading(true);
-    setIsError(false);
-    setResponse(null);
-    setRawResponse(null);
-    setToolExecution(null);
+    setTabField({ loading: true, isError: false, response: null, rawResponse: null, toolExecution: null });
 
     try {
-      const res = await fetch(endpoint, {
-        method,
-        headers: buildHeadersObject(headers, hasBody),
-        body: hasBody ? body : undefined,
+      const res = await fetch(ep, {
+        method: m,
+        headers: buildHeadersObject(h, hasBody),
+        body: hasBody ? b : undefined,
       });
 
       const text = await res.text();
-      setRawResponse(text);
-
       let parsed = null;
       try {
         parsed = JSON.parse(text);
-        setResponse(JSON.stringify(parsed, null, 2));
+        setTabField({ rawResponse: text, response: JSON.stringify(parsed, null, 2) });
       } catch {
-        setResponse(text);
+        setTabField({ rawResponse: text, response: text });
       }
 
-      setToolExecution(extractToolExecution(parsed));
-      pushHistory({ endpoint, method, body, headers, timestamp: Date.now() });
+      setTabField({ toolExecution: extractToolExecution(parsed) });
+      pushHistory({ endpoint: ep, method: m, body: b, headers: h, timestamp: Date.now() });
     } catch (e) {
       const msg = `Network error: ${e.message}`;
-      setResponse(msg);
-      setRawResponse(msg);
-      setIsError(true);
+      setTabField({ response: msg, rawResponse: msg, isError: true });
     } finally {
-      setLoading(false);
+      setTabField({ loading: false });
     }
   }
 
   // --- MCP handlers ---
   async function handleConnect() {
     setMcpConnecting(true);
-    setIsError(false);
-    setResponse(null);
-    setRawResponse(null);
-    setToolExecution(null);
+    updateActiveTab({ isError: false, response: null, rawResponse: null, toolExecution: null });
 
     try {
       const { client, tools } = await createMcpClient(mcpUrl);
@@ -317,9 +393,7 @@ export default function App() {
       setSelectedTool(null);
     } catch (e) {
       const msg = `MCP connection error: ${e.message}`;
-      setResponse(msg);
-      setRawResponse(msg);
-      setIsError(true);
+      updateActiveTab({ response: msg, rawResponse: msg, isError: true });
       setMcpClient(null);
       setMcpTools([]);
       setMcpConnected(false);
@@ -336,62 +410,57 @@ export default function App() {
     setMcpTools([]);
     setSelectedTool(null);
     setMcpConnected(false);
-    setResponse(null);
-    setRawResponse(null);
-    setToolExecution(null);
+    updateActiveTab({ response: null, rawResponse: null, toolExecution: null });
   }
 
   function handleToolSelect(tool) {
     setSelectedTool(tool);
     const template = generateToolTemplate(tool);
-    setBody(template);
+    updateActiveTab({ body: template });
   }
 
   async function handleMcpRun() {
     if (!mcpClient || !selectedTool) return;
 
+    const tabId = activeTabId;
+    const tab = tabs.find(t => t.id === tabId);
+    const setTabField = (fields) => updateTab(tabId, fields);
+
     let args;
     try {
-      args = JSON.parse(body);
+      args = JSON.parse(tab.body);
     } catch (e) {
-      setResponse(`Invalid JSON: ${e.message}`);
-      setRawResponse(`Invalid JSON: ${e.message}`);
-      setIsError(true);
+      setTabField({ response: `Invalid JSON: ${e.message}`, rawResponse: `Invalid JSON: ${e.message}`, isError: true });
       return;
     }
 
-    setLoading(true);
-    setIsError(false);
-    setResponse(null);
-    setRawResponse(null);
-    setToolExecution(null);
+    setTabField({ loading: true, isError: false, response: null, rawResponse: null, toolExecution: null });
 
     try {
       const result = await callMcpTool(mcpClient, selectedTool.name, args);
       const raw = JSON.stringify(result, null, 2);
-      setRawResponse(raw);
-      setResponse(raw);
+      setTabField({ rawResponse: raw, response: raw });
 
-      setToolExecution({
-        name: selectedTool.name,
-        arguments: args,
-        output: result.content ?? result,
+      setTabField({
+        toolExecution: {
+          name: selectedTool.name,
+          arguments: args,
+          output: result.content ?? result,
+        },
       });
     } catch (e) {
       const msg = `MCP tool error: ${e.message}`;
-      setResponse(msg);
-      setRawResponse(msg);
-      setIsError(true);
+      setTabField({ response: msg, rawResponse: msg, isError: true });
     } finally {
-      setLoading(false);
+      setTabField({ loading: false });
     }
   }
 
   // --- cURL handlers ---
   function handleGenerateCurl() {
-    const hasBody = method !== 'GET' && method !== 'DELETE';
-    const hdrs = buildHeadersObject(headers, hasBody);
-    const cmd = generateCurl({ method, url: endpoint, headers: hdrs, body: hasBody ? body : null });
+    const hasBody = activeTab.method !== 'GET' && activeTab.method !== 'DELETE';
+    const hdrs = buildHeadersObject(activeTab.headers, hasBody);
+    const cmd = generateCurl({ method: activeTab.method, url: activeTab.endpoint, headers: hdrs, body: hasBody ? activeTab.body : null });
     setCurlCommand(cmd);
     setShowCurl(true);
     setCurlCopied(false);
@@ -400,16 +469,19 @@ export default function App() {
   function handleCurlImport(text) {
     const result = parseCurl(text);
     if (!result) return;
-    setMethod(result.method);
-    setEndpoint(result.url);
-    setHeaders(result.headers.length ? result.headers : [{ key: '', value: '' }]);
+    const fields = {
+      method: result.method,
+      endpoint: result.url,
+      headers: result.headers.length ? result.headers : [{ key: '', value: '' }],
+    };
     if (result.body) {
       try {
-        setBody(JSON.stringify(JSON.parse(result.body), null, 2));
+        fields.body = JSON.stringify(JSON.parse(result.body), null, 2);
       } catch {
-        setBody(result.body);
+        fields.body = result.body;
       }
     }
+    updateActiveTab(fields);
   }
 
   function handleCurlCopy() {
@@ -427,10 +499,7 @@ export default function App() {
     }
     setMode(newMode);
     // Reset response display
-    setResponse(null);
-    setRawResponse(null);
-    setIsError(false);
-    setToolExecution(null);
+    updateActiveTab({ response: null, rawResponse: null, isError: false, toolExecution: null });
   }
 
   const currentOnRun = mode === 'http' ? handleRun : handleMcpRun;
@@ -440,12 +509,12 @@ export default function App() {
       <TopBar
         mode={mode}
         setMode={handleModeChange}
-        endpoint={endpoint}
+        endpoint={activeTab.endpoint}
         setEndpoint={setEndpoint}
-        method={method}
+        method={activeTab.method}
         setMethod={setMethod}
         onRun={currentOnRun}
-        loading={loading}
+        loading={activeTab.loading}
         mcpUrl={mcpUrl}
         setMcpUrl={setMcpUrl}
         mcpConnected={mcpConnected}
@@ -455,6 +524,15 @@ export default function App() {
         selectedTool={selectedTool}
         onGenerateCurl={handleGenerateCurl}
         onCurlImport={handleCurlImport}
+      />
+
+      <TabBar
+        tabs={tabs}
+        activeTabId={activeTabId}
+        onSelectTab={handleSelectTab}
+        onCloseTab={handleCloseTab}
+        onNewTab={handleNewTab}
+        onRenameTab={handleRenameTab}
       />
 
       <div style={styles.body}>
@@ -517,9 +595,10 @@ export default function App() {
           <div style={{ ...styles.panel, width: `${leftWidth}%` }}>
             <div style={styles.panelHeader}>REQUEST</div>
             <RequestPanel
-              body={body} setBody={setBody}
-              headers={headers} setHeaders={setHeaders}
-              context={context} setContext={setContext}
+              key={activeTabId}
+              body={activeTab.body} setBody={setBody}
+              headers={activeTab.headers} setHeaders={setHeaders}
+              context={activeTab.context} setContext={setContext}
               selectedTool={selectedTool}
               mode={mode}
             />
@@ -530,11 +609,12 @@ export default function App() {
           <div style={{ ...styles.panel, width: `${100 - leftWidth}%` }}>
             <div style={styles.panelHeader}>RESPONSE</div>
             <ResponsePanel
-              response={response}
-              rawResponse={rawResponse}
-              isError={isError}
-              toolExecution={toolExecution}
-              requestBody={body}
+              key={activeTabId}
+              response={activeTab.response}
+              rawResponse={activeTab.rawResponse}
+              isError={activeTab.isError}
+              toolExecution={activeTab.toolExecution}
+              requestBody={activeTab.body}
             />
           </div>
         </div>
