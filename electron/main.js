@@ -125,6 +125,13 @@ ipcMain.handle('save-file', async (event, data, defaultName) => {
 });
 
 app.whenReady().then(() => {
+  app.setAboutPanelOptions({
+    applicationName: 'MCP Debugger',
+    applicationVersion: '0.2.0',
+    version: 'Beta Environment',
+    copyright: 'Copyright © 2026'
+  });
+
   createWindow();
 
   app.on('activate', () => {

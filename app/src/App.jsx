@@ -617,7 +617,23 @@ export default function App() {
         <aside className="w-[180px] shrink-0 bg-zinc-950 border-r border-zinc-800 p-2 overflow-y-auto">
           {mode === 'http' ? (
             <>
-              <p className="text-[10px] font-bold tracking-wider text-zinc-500 m-0 mb-1.5 ml-1 uppercase">HISTORY</p>
+              <div className="flex items-center justify-between mb-1.5 px-1">
+                <p className="text-[10px] font-bold tracking-wider text-zinc-600 m-0 uppercase flex-1 shrink-0">HISTORY</p>
+                {history.length > 0 && (
+                  <button 
+                    onClick={() => {
+                      if (confirm('Clear all request history?')) {
+                        setHistory([]);
+                        saveHistory([]);
+                      }
+                    }}
+                    className="text-[9px] font-bold uppercase tracking-wider text-zinc-600 hover:text-red-400 bg-transparent border-none cursor-pointer p-0"
+                    title="Clear history"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
               {history.length === 0 ? (
                 <p className="text-[11px] text-zinc-600 m-0 ml-1">No requests yet.</p>
               ) : (
