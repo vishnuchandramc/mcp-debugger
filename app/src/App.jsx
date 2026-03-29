@@ -192,7 +192,7 @@ function saveHistory(history) {
   localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
 }
 
-const SAVEABLE_TAB_FIELDS = ['id', 'name', 'method', 'endpoint', 'body', 'headers', 'context', 'auth'];
+const SAVEABLE_TAB_FIELDS = ['id', 'name', 'method', 'endpoint', 'body', 'headers', 'context', 'auth', 'mode'];
 
 function loadTabs() {
   try {
@@ -223,6 +223,7 @@ export default function App() {
 
   const [tabs, setTabs] = useState(() => saved.current?.tabs ?? [{
     id: 1, name: 'Untitled 1',
+    mode: 'http',
     method: 'POST', endpoint: DEFAULT_ENDPOINT,
     body: DEFAULT_BODY, headers: DEFAULT_HEADERS, context: DEFAULT_CONTEXT, auth: DEFAULT_AUTH,
     response: null, rawResponse: null, isError: false,
@@ -231,6 +232,7 @@ export default function App() {
   const [activeTabId, setActiveTabId] = useState(() => saved.current?.activeTabId ?? 1);
 
   const activeTab = tabs.find(t => t.id === activeTabId);
+  const mode = activeTab?.mode || 'http';
 
   function updateTab(tabId, fields) {
     setTabs(prev => prev.map(t => t.id === tabId ? { ...t, ...fields } : t));
@@ -263,6 +265,7 @@ export default function App() {
     const num = nextTabNumber.current++;
     const tab = {
       id, name: `Untitled ${num}`,
+      mode: 'http',
       method: 'POST', endpoint: DEFAULT_ENDPOINT,
       body: DEFAULT_BODY, headers: DEFAULT_HEADERS, context: DEFAULT_CONTEXT, auth: DEFAULT_AUTH,
       response: null, rawResponse: null, isError: false,
@@ -290,10 +293,6 @@ export default function App() {
   }
 
   const [history, setHistory] = useState(loadHistory);
-
-  // --- Mode state ---
-  const [mode, setMode] = useState('http');
-  const savedHttpState = useRef(null); // stores per-tab HTTP fields when switching to MCP
 
   // --- MCP state ---
   const [mcpUrl, setMcpUrl] = useState('http://localhost:3000/sse');
@@ -521,37 +520,13 @@ export default function App() {
   function handleModeChange(newMode) {
     if (newMode === mode) return;
 
-    if (newMode === 'mcp') {
-      // Save current HTTP tab state before switching
-      savedHttpState.current = tabs.map(t => ({
-        id: t.id,
-        method: t.method, endpoint: t.endpoint,
-        body: t.body, headers: t.headers, context: t.context, auth: t.auth,
-      }));
-      // Clear active tab to fresh MCP state
-      updateActiveTab({
-        method: 'POST', endpoint: DEFAULT_ENDPOINT,
-        body: DEFAULT_BODY, headers: DEFAULT_HEADERS, context: DEFAULT_CONTEXT,
-        response: null, rawResponse: null, isError: false, toolExecution: null,
-      });
-    } else {
-      // Switching back to HTTP — disconnect MCP
-      if (mcpConnected) handleDisconnect();
-      // Restore saved HTTP state if available
-      if (savedHttpState.current) {
-        setTabs(prev => prev.map(t => {
-          const saved = savedHttpState.current.find(s => s.id === t.id);
-          return saved
-            ? { ...t, ...saved, response: null, rawResponse: null, isError: false, toolExecution: null }
-            : t;
-        }));
-        savedHttpState.current = null;
-      } else {
-        updateActiveTab({ response: null, rawResponse: null, isError: false, toolExecution: null });
-      }
-    }
-
-    setMode(newMode);
+    updateActiveTab({
+      mode: newMode,
+      response: null, 
+      rawResponse: null, 
+      isError: false, 
+      toolExecution: null,
+    });
   }
 
   const currentOnRun = mode === 'http' ? handleRun : handleMcpRun;
@@ -560,6 +535,7 @@ export default function App() {
     <div className="flex flex-col h-screen bg-zinc-950 text-zinc-200 font-mono overflow-hidden" onMouseMove={onMouseMove} onMouseUp={onMouseUp}>
       <TabBar
         tabs={tabs}
+        mode={mode}
         activeTabId={activeTabId}
         onSelectTab={handleSelectTab}
         onCloseTab={handleCloseTab}

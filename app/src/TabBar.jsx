@@ -43,22 +43,39 @@ export default function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, onN
       className="flex items-end bg-zinc-950 border-b border-zinc-800 shrink-0 min-h-[38px] pl-[80px] pt-1.5 select-none"
       style={{ WebkitAppRegion: 'drag' }}
     >
-      <div className="flex overflow-x-auto flex-1 h-[30px]" style={{ WebkitAppRegion: 'no-drag' }}>
+      <div className="flex overflow-x-auto flex-1 h-[30px] pr-2">
         {tabs.map((tab) => {
           const isActive = tab.id === activeTabId;
           const isEditing = editingTabId === tab.id;
+          const isMcp = tab.mode === 'mcp';
+          
           return (
             <button
               key={tab.id}
+              style={{ WebkitAppRegion: 'no-drag' }}
               onClick={() => onSelectTab(tab.id)}
               className={cn(
-                "flex items-center gap-1.5 px-3 bg-transparent border-none border-x border-zinc-800 text-zinc-500 text-[11px] font-semibold cursor-pointer whitespace-nowrap shrink-0 hover:bg-zinc-800/50 outline-none transition-colors border-t border-t-transparent rounded-t-md -ml-px",
-                isActive && "bg-zinc-900 text-zinc-100 hover:bg-zinc-900 border-t-blue-500 border-b-transparent"
+                "relative flex items-center justify-center gap-1.5 px-3 bg-transparent border-t border-x border-zinc-800 text-zinc-500 text-[11px] font-semibold cursor-pointer whitespace-nowrap shrink-0 hover:bg-zinc-800/50 outline-none transition-colors border-t-transparent rounded-t-lg -ml-px h-full",
+                isActive ? "bg-zinc-900 text-zinc-100 hover:bg-zinc-900" : "",
+                isActive && !isMcp && "border-t-blue-500"
               )}
             >
-              <span className="text-[10px] font-bold" style={{ color: METHOD_COLORS[tab.method] || '#d4d4d4' }}>
-                {tab.method}
-              </span>
+              {isActive && isMcp && (
+                <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 z-10" />
+              )}
+              {isActive && isMcp ? (
+                <span className="text-[10px] font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 uppercase tracking-wider leading-none">
+                  MCP
+                </span>
+              ) : isMcp ? (
+                <span className="text-[10px] font-bold uppercase text-zinc-500">
+                  MCP
+                </span>
+              ) : (
+                <span className="text-[10px] font-bold uppercase" style={{ color: METHOD_COLORS[tab.method] || '#d4d4d4' }}>
+                  {tab.method}
+                </span>
+              )}
               {isEditing ? (
                 <input
                   ref={inputRef}
@@ -100,6 +117,7 @@ export default function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, onN
         })}
         <button 
           onClick={onNewTab} 
+          style={{ WebkitAppRegion: 'no-drag' }}
           className="bg-transparent border-none text-zinc-400 text-xl font-light leading-none cursor-pointer shrink-0 hover:text-zinc-200 hover:bg-zinc-800 flex items-center justify-center w-[24px] h-[24px] rounded ml-1 mb-[2px] outline-none" 
           title="New tab" 
         >
