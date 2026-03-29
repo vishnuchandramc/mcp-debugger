@@ -46,7 +46,7 @@ export default function TopBar({
       <div className="flex items-center gap-1.5 flex-1">
         {/* Mode selector */}
         <Select value={mode} onValueChange={(val) => setMode(val)}>
-          <SelectTrigger className="w-[80px] h-6 text-[11px] font-bold bg-zinc-900 border-zinc-700 text-zinc-200">
+          <SelectTrigger className="w-[85px] h-8 text-[11px] font-bold bg-zinc-900 border-zinc-700 text-zinc-200">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -61,7 +61,7 @@ export default function TopBar({
         {mode === 'http' ? (
           <>
             <Select value={method} onValueChange={(val) => setMethod(val)}>
-              <SelectTrigger className="w-[85px] h-6 text-[11px] font-bold bg-transparent border-zinc-800" style={{ color: METHOD_COLORS[method] }}>
+              <SelectTrigger className="w-[90px] h-8 text-[11px] font-bold bg-transparent border-zinc-800" style={{ color: METHOD_COLORS[method] }}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -84,15 +84,15 @@ export default function TopBar({
                 }
               }}
               placeholder="https://example.com/api/endpoint"
-              className="flex-1 h-6 bg-transparent border-zinc-800 text-zinc-200 text-xs px-2 focus-visible:ring-1 focus-visible:ring-zinc-700"
+              className="flex-1 h-8 bg-zinc-950/50 border-zinc-800 text-zinc-200 text-xs focus-visible:ring-1 focus-visible:ring-zinc-700 font-mono shadow-sm"
               spellCheck={false}
             />
             <Button
               onClick={onRun}
               disabled={loading}
-              variant="outline"
+              variant="default"
               size="sm"
-              className="h-6 px-3 text-[11px] font-semibold bg-transparent border-zinc-700 text-zinc-200 hover:bg-zinc-800"
+              className="h-8 px-4 text-xs font-semibold"
             >
               {loading ? 'Running…' : 'Run'}
             </Button>
@@ -100,7 +100,7 @@ export default function TopBar({
               onClick={onGenerateCurl} 
               variant="outline" 
               size="sm" 
-              className="h-6 px-2 text-[11px] bg-transparent border-zinc-800 text-zinc-500 hover:text-zinc-300"
+              className="h-8 px-3 text-[11px] border-zinc-800 text-zinc-400 hover:text-zinc-200"
             >
               cURL
             </Button>
@@ -112,7 +112,7 @@ export default function TopBar({
               value={mcpUrl}
               onChange={(e) => setMcpUrl(e.target.value)}
               placeholder="http://localhost:3000/sse"
-              className="flex-1 h-6 bg-transparent border-zinc-800 text-zinc-200 text-xs px-2 focus-visible:ring-1 focus-visible:ring-zinc-700"
+              className="flex-1 h-8 bg-zinc-950/50 border-zinc-800 text-zinc-200 text-xs focus-visible:ring-1 focus-visible:ring-zinc-700 font-mono shadow-sm"
               spellCheck={false}
               disabled={mcpConnected || mcpConnecting}
             />
@@ -122,7 +122,7 @@ export default function TopBar({
                 disabled={mcpConnecting}
                 variant="outline"
                 size="sm"
-                className="h-6 px-3 text-[11px] font-semibold bg-transparent border-zinc-700 text-zinc-200 hover:bg-zinc-800"
+                className="h-8 px-4 text-xs font-semibold bg-transparent border-zinc-700 text-zinc-200 hover:bg-zinc-800"
               >
                 {mcpConnecting ? 'Connecting…' : 'Connect'}
               </Button>
@@ -131,7 +131,7 @@ export default function TopBar({
                 onClick={onDisconnect}
                 variant="outline"
                 size="sm"
-                className="h-6 px-3 text-[11px] font-semibold bg-transparent border-red-900 text-red-400 hover:bg-red-950 hover:text-red-300"
+                className="h-8 px-4 text-xs font-semibold bg-transparent border-red-900/50 text-red-400 hover:bg-red-950/50 hover:text-red-300"
               >
                 Disconnect
               </Button>
@@ -139,9 +139,9 @@ export default function TopBar({
             <Button
               onClick={onRun}
               disabled={loading || !mcpConnected || !selectedTool}
-              variant="outline"
+              variant="default"
               size="sm"
-              className="h-6 px-3 text-[11px] font-semibold bg-transparent border-zinc-700 text-zinc-200 hover:bg-zinc-800 disabled:opacity-50"
+              className="h-8 px-4 text-xs font-semibold disabled:opacity-50"
             >
               {loading ? 'Running…' : 'Run'}
             </Button>
