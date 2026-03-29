@@ -188,6 +188,27 @@ function extractToolExecution(parsed) {
   return null;
 }
 
+function detectApiError(parsed, status) {
+  if (status >= 400) {
+    if (parsed && typeof parsed === 'object') {
+      return {
+        message: parsed.error?.message || parsed.error || parsed.message || parsed.detail || `HTTP ${status}`,
+        code: parsed.error?.code || parsed.code || parsed.status || status,
+      };
+    }
+    return { message: `HTTP ${status}`, code: status };
+  }
+  if (parsed && typeof parsed === 'object') {
+    if (parsed.error || (parsed.code && typeof parsed.code === 'number' && parsed.code >= 400)) {
+      return {
+        message: parsed.error?.message || parsed.error || parsed.message || 'Unknown error',
+        code: parsed.error?.code || parsed.code || null,
+      };
+    }
+  }
+  return null;
+}
+
 function loadHistory() {
   try {
     return JSON.parse(localStorage.getItem(HISTORY_KEY)) ?? [];
@@ -462,19 +483,21 @@ export default function App() {
       }
     }
 
-    setTabField({ loading: true, isError: false, response: null, rawResponse: null, toolExecution: null });
+    setTabField({ loading: true, isError: false, response: null, rawResponse: null, toolExecution: null, responseMeta: null });
     appendLog(`→ ${m} ${ep}`, 'info');
 
     try {
       const headersObj = buildHeadersObject(h, hasBody);
       const { headers: finalHeaders, endpoint: finalEndpoint } = applyAuth(tab.auth, headersObj, ep);
+      const startTime = Date.now();
       const res = await fetch(finalEndpoint, {
         method: m,
         headers: finalHeaders,
         body: hasBody ? b : undefined,
       });
+      const elapsed = Date.now() - startTime;
 
-      appendLog(`← ${res.status} ${res.statusText}`, res.ok ? 'success' : 'warn');
+      appendLog(`← ${res.status} ${res.statusText} (${elapsed}ms)`, res.ok ? 'success' : 'warn');
 
       const text = await res.text();
       let parsed = null;
@@ -485,12 +508,22 @@ export default function App() {
         setTabField({ rawResponse: text, response: text });
       }
 
-      setTabField({ toolExecution: extractToolExecution(parsed) });
+      const apiError = detectApiError(parsed, res.status);
+      setTabField({
+        toolExecution: extractToolExecution(parsed),
+        isError: !res.ok || apiError !== null,
+        responseMeta: {
+          status: res.status,
+          statusText: res.statusText,
+          time: elapsed,
+          apiError,
+        },
+      });
       pushHistory({ endpoint: ep, method: m, body: b, headers: h, timestamp: Date.now() });
     } catch (e) {
       const msg = `Network error: ${e.message}`;
       appendLog(`✗ ${msg}`, 'error');
-      setTabField({ response: msg, rawResponse: msg, isError: true });
+      setTabField({ response: msg, rawResponse: msg, isError: true, responseMeta: { status: 0, statusText: 'Network Error', time: 0, apiError: { message: e.message } } });
     } finally {
       setTabField({ loading: false });
     }
@@ -773,6 +806,7 @@ export default function App() {
               toolExecution={activeTab.toolExecution}
               requestBody={activeTab.body}
               mode={activeTab.mode}
+              responseMeta={activeTab.responseMeta}
             />
           </div>
         </div>

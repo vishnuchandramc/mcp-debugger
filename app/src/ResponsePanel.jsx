@@ -3,14 +3,23 @@ import ExecutionTimeline from './ExecutionTimeline.jsx';
 import Editor from '@monaco-editor/react';
 import { cn } from "@/lib/utils";
 
-export default function ResponsePanel({ response, rawResponse, isError, toolExecution, requestBody, mode }) {
+function StatusBadge({ status }) {
+  if (!status) return null;
+  const isSuccess = status >= 200 && status < 300;
+  const isRedirect = status >= 300 && status < 400;
+  const isClientError = status >= 400 && status < 500;
+  const isServerError = status >= 500;
+  const color = isSuccess ? 'text-green-400' : isRedirect ? 'text-blue-400' : isClientError ? 'text-yellow-400' : isServerError ? 'text-red-400' : 'text-zinc-400';
+  const bg = isSuccess ? 'bg-green-500/10' : isRedirect ? 'bg-blue-500/10' : isClientError ? 'bg-yellow-500/10' : isServerError ? 'bg-red-500/10' : 'bg-zinc-500/10';
+  return <span className={`${color} ${bg} px-1.5 py-0.5 text-[11px] font-bold rounded-sm`}>{status}</span>;
+}
+
+export default function ResponsePanel({ response, rawResponse, isError, toolExecution, requestBody, mode, responseMeta }) {
   const [activeTab, setActiveTab] = useState('Pretty');
   const [copied, setCopied] = useState(false);
 
   const hasTimeline = mode === 'mcp' && toolExecution != null;
   const tabs = hasTimeline ? ['Pretty', 'Raw', 'Timeline'] : ['Pretty', 'Raw'];
-
-  // Reset to Pretty if Timeline was active but no longer available
   const effectiveTab = (!hasTimeline && activeTab === 'Timeline') ? 'Pretty' : activeTab;
 
   function handleCopy() {
@@ -21,9 +30,6 @@ export default function ResponsePanel({ response, rawResponse, isError, toolExec
     setTimeout(() => setCopied(false), 2000);
   }
 
-  const displayValue = effectiveTab === 'Pretty' ? response : rawResponse;
-
-  // Detect language for syntax highlighting
   function detectLanguage(text) {
     if (!text) return 'plaintext';
     const trimmed = text.trim();
@@ -32,8 +38,14 @@ export default function ResponsePanel({ response, rawResponse, isError, toolExec
     return 'plaintext';
   }
 
+  const hasResponse = response !== null;
+  const hasMeta = responseMeta != null;
+  const isSuccess = hasMeta && responseMeta.status >= 200 && responseMeta.status < 400;
+  const hasApiError = hasMeta && responseMeta.apiError;
+
   return (
     <div className="flex flex-col h-full bg-zinc-900 overflow-hidden">
+      {/* Tab bar */}
       <div className="flex items-center border-b border-zinc-800 shrink-0 min-h-[28px]">
         {tabs.map((tab) => (
           <button
@@ -47,7 +59,7 @@ export default function ResponsePanel({ response, rawResponse, isError, toolExec
             {tab}
           </button>
         ))}
-        {(effectiveTab === 'Pretty' || effectiveTab === 'Raw') && response != null && (
+        {(effectiveTab === 'Pretty' || effectiveTab === 'Raw') && hasResponse && (
           <div className="ml-auto mr-2 flex items-center">
             <button
               onClick={handleCopy}
@@ -60,8 +72,61 @@ export default function ResponsePanel({ response, rawResponse, isError, toolExec
         )}
       </div>
 
+      {/* Status bar */}
+      {hasMeta && (
+        <div className={cn(
+          "flex items-center gap-3 px-3 py-1.5 border-b shrink-0 text-[11px] font-mono",
+          isSuccess ? "bg-green-500/5 border-green-900/30" : "bg-red-500/5 border-red-900/30"
+        )}>
+          <div className="flex items-center gap-2">
+            <span className={isSuccess ? "text-green-400" : "text-red-400"}>
+              {isSuccess ? '●' : '●'}
+            </span>
+            <span className="text-zinc-400">Status:</span>
+            <StatusBadge status={responseMeta.status} />
+            <span className={cn("font-semibold", isSuccess ? "text-green-400" : "text-red-400")}>
+              {responseMeta.statusText}
+            </span>
+          </div>
+          {responseMeta.time > 0 && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-zinc-600">|</span>
+              <span className="text-zinc-400">Time:</span>
+              <span className={cn("font-semibold", responseMeta.time < 200 ? "text-green-400" : responseMeta.time < 1000 ? "text-yellow-400" : "text-red-400")}>
+                {responseMeta.time}ms
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Error banner */}
+      {hasApiError && (
+        <div className="bg-red-500/10 border-b border-red-900/30 px-3 py-2 shrink-0">
+          <div className="flex items-start gap-2">
+            <span className="text-red-400 text-[12px] shrink-0 mt-[1px]">❌</span>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[11px] font-bold text-red-400">API Error{responseMeta.apiError.code ? ` (${responseMeta.apiError.code})` : ''}</span>
+              <span className="text-[11px] text-red-300/80">
+                {typeof responseMeta.apiError.message === 'string'
+                  ? responseMeta.apiError.message
+                  : JSON.stringify(responseMeta.apiError.message)}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success indicator (only if no error and has response) */}
+      {hasMeta && isSuccess && !hasApiError && (
+        <div className="bg-green-500/5 border-b border-green-900/20 px-3 py-1 shrink-0">
+          <span className="text-[11px] text-green-400 font-semibold">✓ Request successful</span>
+        </div>
+      )}
+
+      {/* Response content */}
       <div className="flex-1 overflow-hidden flex flex-col">
-        {response === null ? (
+        {!hasResponse ? (
           <div className="p-2">
             <p className="text-zinc-500 text-xs m-0">Send a request to see the response.</p>
           </div>
@@ -74,7 +139,7 @@ export default function ResponsePanel({ response, rawResponse, isError, toolExec
             />
           </div>
         ) : effectiveTab === 'Pretty' ? (
-          <div className="flex-1 overflow-hidden border-t border-zinc-800">
+          <div className="flex-1 overflow-hidden">
             <Editor
               value={response || ''}
               language={detectLanguage(response)}
