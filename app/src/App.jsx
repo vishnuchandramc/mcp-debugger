@@ -5,6 +5,7 @@ import RequestPanel from './RequestPanel.jsx';
 import ResponsePanel from './ResponsePanel.jsx';
 import { createMcpClient, callMcpTool, disconnectMcpClient, generateToolTemplate } from './mcpClient.js';
 import { cn } from "@/lib/utils";
+import Editor from '@monaco-editor/react';
 
 const DEFAULT_ENDPOINT = '';
 const DEFAULT_BODY = '';
@@ -23,7 +24,11 @@ function generateCurl({ method, url, headers, body }) {
     parts.push(`-H "${key}: ${value.replace(/"/g, '\\"')}"`);
   }
   if (body && method !== 'GET' && method !== 'DELETE') {
-    parts.push(`-d '${body.replace(/'/g, "'\\''")}'`);
+    let prettyBody = body;
+    try {
+      prettyBody = JSON.stringify(JSON.parse(body), null, 2);
+    } catch { /* not json */ }
+    parts.push(`-d '${prettyBody.replace(/'/g, "'\\''")}'`);
   }
   return parts.join(' \\\n  ');
 }
@@ -658,9 +663,25 @@ export default function App() {
                 &times;
               </button>
             </div>
-            <pre className="bg-zinc-950 border border-zinc-800 rounded-none p-2.5 m-0 text-xs text-zinc-400 whitespace-pre-wrap break-all max-h-[400px] overflow-y-auto">
-              {curlCommand}
-            </pre>
+            <div className="bg-zinc-950 border border-zinc-800 rounded-none overflow-hidden h-[300px] relative">
+              <Editor
+                value={curlCommand}
+                language="shell"
+                theme="vs-dark"
+                options={{
+                  readOnly: true,
+                  fontSize: 13,
+                  fontFamily: "Menlo, Monaco, 'Courier New', monospace",
+                  minimap: { enabled: false },
+                  scrollBeyondLastLine: false,
+                  lineNumbers: 'off',
+                  renderLineHighlight: 'none',
+                  tabSize: 2,
+                  wordWrap: 'off',
+                  padding: { top: 10, bottom: 10 },
+                }}
+              />
+            </div>
             <button onClick={handleCurlCopy} className="self-end bg-transparent text-zinc-200 border border-zinc-700 hover:bg-zinc-800 rounded-none px-4 py-1.5 text-xs outline-none transition-colors">
               {curlCopied ? 'Copied!' : 'Copy'}
             </button>
