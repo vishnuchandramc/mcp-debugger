@@ -269,6 +269,7 @@ export default function App() {
 
   // --- Mode state ---
   const [mode, setMode] = useState('http');
+  const savedHttpState = useRef(null); // stores per-tab HTTP fields when switching to MCP
 
   // --- MCP state ---
   const [mcpUrl, setMcpUrl] = useState('http://localhost:3000/sse');
@@ -493,13 +494,38 @@ export default function App() {
   // --- Mode switching ---
   function handleModeChange(newMode) {
     if (newMode === mode) return;
-    // Disconnect MCP when switching away
-    if (mode === 'mcp' && mcpConnected) {
-      handleDisconnect();
+
+    if (newMode === 'mcp') {
+      // Save current HTTP tab state before switching
+      savedHttpState.current = tabs.map(t => ({
+        id: t.id,
+        method: t.method, endpoint: t.endpoint,
+        body: t.body, headers: t.headers, context: t.context,
+      }));
+      // Clear active tab to fresh MCP state
+      updateActiveTab({
+        method: 'POST', endpoint: DEFAULT_ENDPOINT,
+        body: DEFAULT_BODY, headers: DEFAULT_HEADERS, context: DEFAULT_CONTEXT,
+        response: null, rawResponse: null, isError: false, toolExecution: null,
+      });
+    } else {
+      // Switching back to HTTP — disconnect MCP
+      if (mcpConnected) handleDisconnect();
+      // Restore saved HTTP state if available
+      if (savedHttpState.current) {
+        setTabs(prev => prev.map(t => {
+          const saved = savedHttpState.current.find(s => s.id === t.id);
+          return saved
+            ? { ...t, ...saved, response: null, rawResponse: null, isError: false, toolExecution: null }
+            : t;
+        }));
+        savedHttpState.current = null;
+      } else {
+        updateActiveTab({ response: null, rawResponse: null, isError: false, toolExecution: null });
+      }
     }
+
     setMode(newMode);
-    // Reset response display
-    updateActiveTab({ response: null, rawResponse: null, isError: false, toolExecution: null });
   }
 
   const currentOnRun = mode === 'http' ? handleRun : handleMcpRun;
@@ -595,7 +621,7 @@ export default function App() {
           <div style={{ ...styles.panel, width: `${leftWidth}%` }}>
             <div style={styles.panelHeader}>REQUEST</div>
             <RequestPanel
-              key={activeTabId}
+              key={`${activeTabId}-${mode}`}
               body={activeTab.body} setBody={setBody}
               headers={activeTab.headers} setHeaders={setHeaders}
               context={activeTab.context} setContext={setContext}

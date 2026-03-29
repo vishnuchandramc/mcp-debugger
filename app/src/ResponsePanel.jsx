@@ -1,29 +1,49 @@
 import React, { useState } from 'react';
 import ExecutionTimeline from './ExecutionTimeline.jsx';
 
-const TABS = ['Pretty', 'Raw', 'Timeline'];
-
 export default function ResponsePanel({ response, rawResponse, isError, toolExecution, requestBody }) {
   const [activeTab, setActiveTab] = useState('Pretty');
+  const [copied, setCopied] = useState(false);
+
+  const hasTimeline = toolExecution != null;
+  const tabs = hasTimeline ? ['Pretty', 'Raw', 'Timeline'] : ['Pretty', 'Raw'];
+
+  // Reset to Pretty if Timeline was active but no longer available
+  const effectiveTab = (!hasTimeline && activeTab === 'Timeline') ? 'Pretty' : activeTab;
+
+  function handleCopy() {
+    const text = effectiveTab === 'Pretty' ? response : rawResponse;
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
 
   return (
     <div style={styles.panel}>
       <div style={styles.tabBar}>
-        {TABS.map((tab) => (
+        {tabs.map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            style={{ ...styles.tab, ...(activeTab === tab ? styles.tabActive : {}) }}
+            style={{ ...styles.tab, ...(effectiveTab === tab ? styles.tabActive : {}) }}
           >
             {tab}
           </button>
         ))}
+        {(effectiveTab === 'Pretty' || effectiveTab === 'Raw') && response != null && (
+          <div style={styles.tabActions}>
+            <button onClick={handleCopy} style={styles.copyBtn} title="Copy response">
+              {copied ? 'Copied!' : 'Copy'}
+            </button>
+          </div>
+        )}
       </div>
 
       <div style={styles.content}>
         {response === null ? (
           <p style={styles.placeholder}>Send a request to see the response.</p>
-        ) : activeTab === 'Timeline' ? (
+        ) : effectiveTab === 'Timeline' ? (
           <ExecutionTimeline
             requestBody={requestBody}
             response={response}
@@ -32,7 +52,7 @@ export default function ResponsePanel({ response, rawResponse, isError, toolExec
         ) : (
           <>
             <pre style={{ ...styles.pre, ...(isError ? styles.error : {}) }}>
-              {activeTab === 'Pretty' ? response : rawResponse}
+              {effectiveTab === 'Pretty' ? response : rawResponse}
             </pre>
 
             <div style={styles.toolSection}>
@@ -80,6 +100,7 @@ const styles = {
   },
   tabBar: {
     display: 'flex',
+    alignItems: 'center',
     borderBottom: '1px solid #3c3c3c',
     flexShrink: 0,
   },
@@ -97,6 +118,22 @@ const styles = {
   tabActive: {
     color: '#d4d4d4',
     borderBottomColor: '#0e639c',
+  },
+  tabActions: {
+    marginLeft: 'auto',
+    marginRight: '12px',
+    display: 'flex',
+    alignItems: 'center',
+  },
+  copyBtn: {
+    backgroundColor: 'transparent',
+    color: '#888',
+    border: '1px solid #3c3c3c',
+    borderRadius: '4px',
+    padding: '3px 10px',
+    fontSize: '11px',
+    fontFamily: 'monospace',
+    cursor: 'pointer',
   },
   content: {
     flex: 1,

@@ -36,6 +36,7 @@ export default function RequestPanel({ body, setBody, headers, setHeaders, conte
   const [activeTab, setActiveTab] = useState('Body');
   const [jsonError, setJsonError] = useState(null);
   const [contextError, setContextError] = useState(null);
+  const [bodyCopied, setBodyCopied] = useState(false);
   const editorRef = useRef(null);
   const contextEditorRef = useRef(null);
 
@@ -125,6 +126,17 @@ export default function RequestPanel({ body, setBody, headers, setHeaders, conte
         ))}
         {activeTab === 'Body' && (
           <div style={styles.tabActions}>
+            <button
+              onClick={() => {
+                if (!body) return;
+                navigator.clipboard.writeText(body);
+                setBodyCopied(true);
+                setTimeout(() => setBodyCopied(false), 2000);
+              }}
+              style={styles.actionBtn}
+            >
+              {bodyCopied ? 'Copied!' : 'Copy'}
+            </button>
             <button onClick={handleFormat} style={styles.actionBtn}>Format</button>
             <select onChange={handleTemplate} style={styles.templateSelect} defaultValue="">
               <option value="" disabled>Templates</option>
