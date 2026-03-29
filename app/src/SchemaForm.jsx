@@ -1,4 +1,7 @@
 import React from 'react';
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 export default function SchemaForm({ schema, values, onChange }) {
   if (!schema || !schema.properties) return null;
@@ -15,18 +18,18 @@ export default function SchemaForm({ schema, values, onChange }) {
   }
 
   return (
-    <div style={styles.container}>
+    <div className="flex flex-col gap-2.5 overflow-y-auto flex-1 p-0.5">
       {entries.map(([key, prop]) => {
         const isRequired = required.includes(key);
         const value = values[key] ?? (prop.type === 'boolean' ? false : '');
 
         return (
-          <div key={key} style={{ ...styles.field, ...(isRequired ? styles.fieldRequired : {}) }}>
-            <label style={styles.label}>
+          <div key={key} className={cn("flex flex-col gap-1 border-l-2 pl-2", isRequired ? "border-zinc-100" : "border-transparent")}>
+            <label className="text-zinc-200 text-[11px] font-semibold">
               {key}
-              {isRequired && <span style={styles.asterisk}> *</span>}
+              {isRequired && <span className="text-red-400 font-normal"> *</span>}
             </label>
-            {prop.description && <span style={styles.hint}>{prop.description}</span>}
+            {prop.description && <span className="text-zinc-500 text-[10px]">{prop.description}</span>}
             {renderInput(key, prop, value, handleChange)}
           </div>
         );
@@ -38,39 +41,40 @@ export default function SchemaForm({ schema, values, onChange }) {
 function renderInput(key, prop, value, handleChange) {
   if (prop.type === 'string' && prop.enum) {
     return (
-      <select
-        style={styles.input}
-        value={value}
-        onChange={(e) => handleChange(key, prop, e.target.value)}
-      >
-        <option value="">— select —</option>
-        {prop.enum.map((opt) => (
-          <option key={opt} value={opt}>{opt}</option>
-        ))}
-      </select>
+      <Select value={value} onValueChange={(val) => handleChange(key, prop, val)}>
+        <SelectTrigger className="w-full h-6 text-xs bg-transparent border-zinc-800 text-zinc-200">
+          <SelectValue placeholder="— select —" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="" className="text-xs">— select —</SelectItem>
+          {prop.enum.map((opt) => (
+            <SelectItem key={opt} value={opt} className="text-xs">{opt}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     );
   }
 
   if (prop.type === 'boolean') {
     return (
-      <div style={styles.checkboxRow}>
+      <div className="flex items-center gap-1.5 py-0.5">
         <input
           type="checkbox"
           checked={!!value}
           onChange={(e) => handleChange(key, prop, e.target.checked)}
-          style={styles.checkbox}
+          className="accent-zinc-700 w-3.5 h-3.5 cursor-pointer m-0"
         />
-        <span style={styles.checkboxLabel}>{value ? 'true' : 'false'}</span>
+        <span className="text-zinc-400 text-[11px]">{value ? 'true' : 'false'}</span>
       </div>
     );
   }
 
   if (prop.type === 'number' || prop.type === 'integer') {
     return (
-      <input
+      <Input
         type="number"
         step={prop.type === 'integer' ? 1 : 'any'}
-        style={styles.input}
+        className="w-full h-6 bg-transparent border-zinc-800 text-zinc-200 text-xs px-2 focus-visible:ring-1 focus-visible:ring-zinc-700"
         value={value}
         onChange={(e) => handleChange(key, prop, e.target.value)}
         placeholder={prop.type}
@@ -80,9 +84,9 @@ function renderInput(key, prop, value, handleChange) {
 
   // default: string text input
   return (
-    <input
+    <Input
       type="text"
-      style={styles.input}
+      className="w-full h-6 bg-transparent border-zinc-800 text-zinc-200 text-xs px-2 focus-visible:ring-1 focus-visible:ring-zinc-700"
       value={value}
       onChange={(e) => handleChange(key, prop, e.target.value)}
       placeholder={prop.type || 'string'}
@@ -90,65 +94,3 @@ function renderInput(key, prop, value, handleChange) {
   );
 }
 
-const styles = {
-  container: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '14px',
-    overflowY: 'auto',
-    flex: 1,
-    padding: '2px',
-  },
-  field: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '4px',
-    borderLeft: '3px solid transparent',
-    paddingLeft: '10px',
-  },
-  fieldRequired: {
-    borderLeftColor: '#0e639c',
-  },
-  label: {
-    color: '#d4d4d4',
-    fontSize: '12px',
-    fontFamily: 'monospace',
-    fontWeight: 600,
-  },
-  asterisk: {
-    color: '#f48771',
-  },
-  hint: {
-    color: '#888',
-    fontSize: '11px',
-    fontFamily: 'monospace',
-  },
-  input: {
-    backgroundColor: '#2d2d2d',
-    color: '#d4d4d4',
-    border: '1px solid #3c3c3c',
-    borderRadius: '4px',
-    padding: '7px 10px',
-    fontSize: '13px',
-    fontFamily: 'monospace',
-    outline: 'none',
-    width: '100%',
-    boxSizing: 'border-box',
-  },
-  checkboxRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-  },
-  checkbox: {
-    accentColor: '#0e639c',
-    width: '16px',
-    height: '16px',
-    cursor: 'pointer',
-  },
-  checkboxLabel: {
-    color: '#888',
-    fontSize: '12px',
-    fontFamily: 'monospace',
-  },
-};

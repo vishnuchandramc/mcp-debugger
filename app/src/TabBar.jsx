@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { cn } from "@/lib/utils";
 
 const METHOD_COLORS = {
   GET: '#4ec9b0',
@@ -38,8 +39,8 @@ export default function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, onN
   }
 
   return (
-    <div style={styles.bar}>
-      <div style={styles.tabList}>
+    <div className="flex items-center bg-zinc-900 border-b border-zinc-800 shrink-0 min-h-[28px]">
+      <div className="flex overflow-x-auto flex-1 h-[28px]">
         {tabs.map((tab) => {
           const isActive = tab.id === activeTabId;
           const isEditing = editingTabId === tab.id;
@@ -47,12 +48,12 @@ export default function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, onN
             <button
               key={tab.id}
               onClick={() => onSelectTab(tab.id)}
-              style={{
-                ...styles.tab,
-                ...(isActive ? styles.tabActive : {}),
-              }}
+              className={cn(
+                "flex items-center gap-1.5 px-3 bg-transparent border-none border-r border-zinc-800 text-zinc-500 text-[11px] font-semibold cursor-pointer whitespace-nowrap shrink-0 hover:bg-zinc-800/50 outline-none transition-colors",
+                isActive && "bg-zinc-800 text-zinc-100 hover:bg-zinc-800"
+              )}
             >
-              <span style={{ ...styles.methodBadge, color: METHOD_COLORS[tab.method] || '#d4d4d4' }}>
+              <span className="text-[10px] font-bold" style={{ color: METHOD_COLORS[tab.method] || '#d4d4d4' }}>
                 {tab.method}
               </span>
               {isEditing ? (
@@ -66,11 +67,11 @@ export default function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, onN
                   }}
                   onBlur={() => commitEdit(tab)}
                   onClick={(e) => e.stopPropagation()}
-                  style={styles.editInput}
+                  className="text-[11px] bg-transparent border-none outline-none text-zinc-200 p-0 m-0 w-[80px]"
                 />
               ) : (
                 <span
-                  style={styles.tabName}
+                  className="text-[11px]"
                   onDoubleClick={(e) => {
                     e.stopPropagation();
                     startEditing(tab);
@@ -85,7 +86,7 @@ export default function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, onN
                     e.stopPropagation();
                     onCloseTab(tab.id);
                   }}
-                  style={styles.closeBtn}
+                  className="text-[14px] leading-none text-zinc-500 cursor-pointer px-[2px] ml-1 hover:text-red-400"
                   title="Close tab"
                 >
                   ×
@@ -95,81 +96,10 @@ export default function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, onN
           );
         })}
       </div>
-      <button onClick={onNewTab} style={styles.newTab} title="New tab">
+      <button onClick={onNewTab} className="bg-transparent border-none text-zinc-500 text-base cursor-pointer px-3 shrink-0 hover:text-zinc-300" title="New tab">
         +
       </button>
     </div>
   );
 }
 
-const styles = {
-  bar: {
-    display: 'flex',
-    alignItems: 'center',
-    backgroundColor: '#252526',
-    borderBottom: '1px solid #3c3c3c',
-    flexShrink: 0,
-    minHeight: '34px',
-  },
-  tabList: {
-    display: 'flex',
-    overflowX: 'auto',
-    flex: 1,
-  },
-  tab: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    padding: '6px 12px',
-    background: 'none',
-    border: 'none',
-    borderBottom: '2px solid transparent',
-    color: '#888',
-    fontSize: '12px',
-    fontFamily: 'monospace',
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
-    flexShrink: 0,
-  },
-  tabActive: {
-    borderBottomColor: '#0e639c',
-    color: '#d4d4d4',
-  },
-  methodBadge: {
-    fontSize: '10px',
-    fontWeight: 700,
-    fontFamily: 'monospace',
-  },
-  tabName: {
-    fontSize: '12px',
-  },
-  editInput: {
-    fontSize: '12px',
-    fontFamily: 'monospace',
-    background: 'transparent',
-    border: 'none',
-    outline: 'none',
-    color: '#d4d4d4',
-    padding: 0,
-    margin: 0,
-    width: '80px',
-  },
-  closeBtn: {
-    fontSize: '14px',
-    lineHeight: 1,
-    color: '#888',
-    cursor: 'pointer',
-    padding: '0 2px',
-    marginLeft: '4px',
-  },
-  newTab: {
-    background: 'none',
-    border: 'none',
-    color: '#888',
-    fontSize: '18px',
-    fontFamily: 'monospace',
-    cursor: 'pointer',
-    padding: '4px 12px',
-    flexShrink: 0,
-  },
-};

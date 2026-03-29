@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import ExecutionTimeline from './ExecutionTimeline.jsx';
+import { cn } from "@/lib/utils";
 
 export default function ResponsePanel({ response, rawResponse, isError, toolExecution, requestBody }) {
   const [activeTab, setActiveTab] = useState('Pretty');
@@ -20,29 +21,36 @@ export default function ResponsePanel({ response, rawResponse, isError, toolExec
   }
 
   return (
-    <div style={styles.panel}>
-      <div style={styles.tabBar}>
+    <div className="flex flex-col h-full bg-zinc-900 overflow-hidden">
+      <div className="flex items-center border-b border-zinc-800 shrink-0 min-h-[28px]">
         {tabs.map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            style={{ ...styles.tab, ...(effectiveTab === tab ? styles.tabActive : {}) }}
+            className={cn(
+              "bg-transparent border-none border-r border-zinc-800 text-zinc-500 py-[5px] px-3 text-[11px] font-semibold cursor-pointer outline-none transition-colors",
+              effectiveTab === tab && "bg-zinc-800 text-zinc-100"
+            )}
           >
             {tab}
           </button>
         ))}
         {(effectiveTab === 'Pretty' || effectiveTab === 'Raw') && response != null && (
-          <div style={styles.tabActions}>
-            <button onClick={handleCopy} style={styles.copyBtn} title="Copy response">
+          <div className="ml-auto mr-2 flex items-center">
+            <button
+              onClick={handleCopy}
+              className="bg-transparent text-zinc-400 border border-zinc-800 rounded px-2 py-0.5 text-[10px] cursor-pointer hover:bg-zinc-800 transition-colors"
+              title="Copy response"
+            >
               {copied ? 'Copied!' : 'Copy'}
             </button>
           </div>
         )}
       </div>
 
-      <div style={styles.content}>
+      <div className="flex-1 overflow-auto p-2 flex flex-col gap-3">
         {response === null ? (
-          <p style={styles.placeholder}>Send a request to see the response.</p>
+          <p className="text-zinc-500 text-xs m-0">Send a request to see the response.</p>
         ) : effectiveTab === 'Timeline' ? (
           <ExecutionTimeline
             requestBody={requestBody}
@@ -51,19 +59,19 @@ export default function ResponsePanel({ response, rawResponse, isError, toolExec
           />
         ) : (
           <>
-            <pre style={{ ...styles.pre, ...(isError ? styles.error : {}) }}>
+            <pre className={cn("m-0 text-xs whitespace-pre-wrap break-words text-zinc-200 leading-relaxed font-mono", isError && "text-red-400")}>
               {effectiveTab === 'Pretty' ? response : rawResponse}
             </pre>
 
-            <div style={styles.toolSection}>
-              <p style={styles.toolHeader}>TOOL EXECUTION</p>
+            <div className="border-t border-zinc-800 pt-2">
+              <p className="text-[10px] font-bold tracking-wider text-zinc-500 m-0 mb-2 uppercase">TOOL EXECUTION</p>
               {toolExecution ? (
-                <div style={styles.toolGrid}>
-                  <span style={styles.toolKey}>Tool</span>
-                  <span style={styles.toolValue}>{toolExecution.name ?? '—'}</span>
+                <div className="grid grid-cols-[70px_1fr] gap-x-2 gap-y-1 items-start">
+                  <span className="text-[11px] text-zinc-500 pt-1 font-semibold text-right">Tool</span>
+                  <span className="text-xs text-zinc-200 pt-[3px] font-semibold">{toolExecution.name ?? '—'}</span>
 
-                  <span style={styles.toolKey}>Arguments</span>
-                  <pre style={styles.toolPre}>
+                  <span className="text-[11px] text-zinc-500 pt-1 font-semibold text-right">Arguments</span>
+                  <pre className="m-0 mb-1 text-[11px] whitespace-pre-wrap break-words text-zinc-400 leading-relaxed bg-zinc-950 border border-zinc-800 rounded p-1.5 font-mono">
                     {toolExecution.arguments != null
                       ? JSON.stringify(toolExecution.arguments, null, 2)
                       : '—'}
@@ -71,8 +79,8 @@ export default function ResponsePanel({ response, rawResponse, isError, toolExec
 
                   {toolExecution.output != null && (
                     <>
-                      <span style={styles.toolKey}>Output</span>
-                      <pre style={styles.toolPre}>
+                      <span className="text-[11px] text-zinc-500 pt-1 font-semibold text-right">Output</span>
+                      <pre className="m-0 mb-1 text-[11px] whitespace-pre-wrap break-words text-zinc-400 leading-relaxed bg-zinc-950 border border-zinc-800 rounded p-1.5 font-mono">
                         {typeof toolExecution.output === 'string'
                           ? toolExecution.output
                           : JSON.stringify(toolExecution.output, null, 2)}
@@ -81,7 +89,7 @@ export default function ResponsePanel({ response, rawResponse, isError, toolExec
                   )}
                 </div>
               ) : (
-                <p style={styles.noTool}>No tool execution detected</p>
+                <p className="text-[11px] text-zinc-600 m-0 italic">No tool execution detected</p>
               )}
             </div>
           </>
@@ -91,122 +99,4 @@ export default function ResponsePanel({ response, rawResponse, isError, toolExec
   );
 }
 
-const styles = {
-  panel: {
-    display: 'flex',
-    flexDirection: 'column',
-    height: '100%',
-    overflow: 'hidden',
-  },
-  tabBar: {
-    display: 'flex',
-    alignItems: 'center',
-    borderBottom: '1px solid #3c3c3c',
-    flexShrink: 0,
-  },
-  tab: {
-    background: 'none',
-    border: 'none',
-    borderBottom: '2px solid transparent',
-    color: '#888',
-    padding: '8px 16px',
-    fontSize: '12px',
-    fontFamily: 'monospace',
-    cursor: 'pointer',
-    marginBottom: '-1px',
-  },
-  tabActive: {
-    color: '#d4d4d4',
-    borderBottomColor: '#0e639c',
-  },
-  tabActions: {
-    marginLeft: 'auto',
-    marginRight: '12px',
-    display: 'flex',
-    alignItems: 'center',
-  },
-  copyBtn: {
-    backgroundColor: 'transparent',
-    color: '#888',
-    border: '1px solid #3c3c3c',
-    borderRadius: '4px',
-    padding: '3px 10px',
-    fontSize: '11px',
-    fontFamily: 'monospace',
-    cursor: 'pointer',
-  },
-  content: {
-    flex: 1,
-    overflow: 'auto',
-    padding: '12px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '16px',
-  },
-  pre: {
-    margin: 0,
-    fontSize: '13px',
-    fontFamily: 'monospace',
-    whiteSpace: 'pre-wrap',
-    wordBreak: 'break-word',
-    color: '#d4d4d4',
-    lineHeight: '1.5',
-  },
-  error: {
-    color: '#f48771',
-  },
-  placeholder: {
-    color: '#555',
-    fontSize: '13px',
-    fontFamily: 'monospace',
-    margin: 0,
-  },
-  toolSection: {
-    borderTop: '1px solid #3c3c3c',
-    paddingTop: '12px',
-  },
-  toolHeader: {
-    fontSize: '10px',
-    fontWeight: 700,
-    letterSpacing: '0.1em',
-    color: '#555',
-    margin: '0 0 10px 0',
-  },
-  toolGrid: {
-    display: 'grid',
-    gridTemplateColumns: '80px 1fr',
-    gap: '6px 12px',
-    alignItems: 'start',
-  },
-  toolKey: {
-    fontSize: '11px',
-    color: '#888',
-    fontFamily: 'monospace',
-    paddingTop: '2px',
-  },
-  toolValue: {
-    fontSize: '13px',
-    color: '#4ec9b0',
-    fontFamily: 'monospace',
-  },
-  noTool: {
-    fontSize: '12px',
-    color: '#555',
-    fontFamily: 'monospace',
-    margin: 0,
-    fontStyle: 'italic',
-  },
-  toolPre: {
-    margin: 0,
-    fontSize: '12px',
-    fontFamily: 'monospace',
-    whiteSpace: 'pre-wrap',
-    wordBreak: 'break-word',
-    color: '#dcdcaa',
-    lineHeight: '1.5',
-    backgroundColor: '#252526',
-    border: '1px solid #3c3c3c',
-    borderRadius: '4px',
-    padding: '8px',
-  },
-};
+

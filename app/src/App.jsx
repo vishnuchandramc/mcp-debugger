@@ -4,6 +4,7 @@ import TabBar from './TabBar.jsx';
 import RequestPanel from './RequestPanel.jsx';
 import ResponsePanel from './ResponsePanel.jsx';
 import { createMcpClient, callMcpTool, disconnectMcpClient, generateToolTemplate } from './mcpClient.js';
+import { cn } from "@/lib/utils";
 
 const DEFAULT_ENDPOINT = '';
 const DEFAULT_BODY = '';
@@ -556,7 +557,7 @@ export default function App() {
   const currentOnRun = mode === 'http' ? handleRun : handleMcpRun;
 
   return (
-    <div style={styles.app} onMouseMove={onMouseMove} onMouseUp={onMouseUp}>
+    <div className="flex flex-col h-screen bg-zinc-950 text-zinc-200 font-mono overflow-hidden" onMouseMove={onMouseMove} onMouseUp={onMouseUp}>
       <TopBar
         mode={mode}
         setMode={handleModeChange}
@@ -586,50 +587,50 @@ export default function App() {
         onRenameTab={handleRenameTab}
       />
 
-      <div style={styles.body}>
-        <aside style={styles.sidebar}>
+      <div className="flex flex-1 overflow-hidden">
+        <aside className="w-[180px] shrink-0 bg-zinc-950 border-r border-zinc-800 p-2 overflow-y-auto">
           {mode === 'http' ? (
             <>
-              <p style={styles.sidebarLabel}>HISTORY</p>
+              <p className="text-[10px] font-bold tracking-wider text-zinc-500 m-0 mb-1.5 ml-1 uppercase">HISTORY</p>
               {history.length === 0 ? (
-                <p style={styles.sidebarEmpty}>No requests yet.</p>
+                <p className="text-[11px] text-zinc-600 m-0 ml-1">No requests yet.</p>
               ) : (
                 history.map((item, i) => (
                   <button
                     key={i}
                     onClick={() => loadHistoryItem(item)}
-                    style={styles.historyItem}
+                    className="flex flex-col gap-0.5 w-full bg-transparent hover:bg-zinc-900 border-none rounded p-1.5 mb-0.5 cursor-pointer text-left outline-none transition-colors"
                     title={item.endpoint}
                   >
-                    <span style={{ ...styles.historyMethod, color: METHOD_COLORS[item.method] }}>
+                    <span className="text-[10px] font-bold" style={{ color: METHOD_COLORS[item.method] }}>
                       {item.method}
                     </span>
-                    <span style={styles.historyUrl}>{shortUrl(item.endpoint)}</span>
+                    <span className="text-[11px] text-zinc-500 overflow-hidden text-ellipsis whitespace-nowrap">{shortUrl(item.endpoint)}</span>
                   </button>
                 ))
               )}
             </>
           ) : (
             <>
-              <p style={styles.sidebarLabel}>TOOLS</p>
+              <p className="text-[10px] font-bold tracking-wider text-zinc-500 m-0 mb-1.5 ml-1 uppercase">TOOLS</p>
               {!mcpConnected ? (
-                <p style={styles.sidebarEmpty}>Connect to discover tools.</p>
+                <p className="text-[11px] text-zinc-600 m-0 ml-1">Connect to discover tools.</p>
               ) : mcpTools.length === 0 ? (
-                <p style={styles.sidebarEmpty}>No tools available.</p>
+                <p className="text-[11px] text-zinc-600 m-0 ml-1">No tools available.</p>
               ) : (
                 mcpTools.map((tool) => (
                   <button
                     key={tool.name}
                     onClick={() => handleToolSelect(tool)}
-                    style={{
-                      ...styles.toolItem,
-                      ...(selectedTool?.name === tool.name ? styles.toolItemSelected : {}),
-                    }}
+                    className={cn(
+                      "flex flex-col gap-0.5 w-full bg-transparent hover:bg-zinc-900 border-none rounded p-1.5 mb-0.5 cursor-pointer text-left outline-none transition-colors",
+                      selectedTool?.name === tool.name && "bg-zinc-800 hover:bg-zinc-800"
+                    )}
                     title={tool.description || tool.name}
                   >
-                    <span style={styles.toolName}>{tool.name}</span>
+                    <span className="text-[11px] font-bold text-zinc-200">{tool.name}</span>
                     {tool.description && (
-                      <span style={styles.toolDesc}>
+                      <span className="text-[10px] text-zinc-500 overflow-hidden text-ellipsis whitespace-nowrap">
                         {tool.description.length > 40
                           ? tool.description.slice(0, 40) + '…'
                           : tool.description}
@@ -642,9 +643,9 @@ export default function App() {
           )}
         </aside>
 
-        <div style={styles.panels} ref={containerRef}>
-          <div style={{ ...styles.panel, width: `${leftWidth}%` }}>
-            <div style={styles.panelHeader}>REQUEST</div>
+        <div className="flex flex-1 overflow-hidden bg-zinc-900" ref={containerRef}>
+          <div className="flex flex-col overflow-hidden" style={{ width: `${leftWidth}%` }}>
+            <div className="text-[10px] font-bold text-zinc-500 bg-zinc-900 border-b border-zinc-800 py-1 px-3 tracking-wider uppercase">REQUEST</div>
             <RequestPanel
               key={`${activeTabId}-${mode}`}
               body={activeTab.body} setBody={setBody}
@@ -656,10 +657,10 @@ export default function App() {
             />
           </div>
 
-          <div style={styles.divider} onMouseDown={onMouseDown} title="Drag to resize" />
+          <div className="w-[1px] bg-zinc-800 cursor-col-resize relative z-10 before:absolute before:-inset-x-1 before:inset-y-0 before:cursor-col-resize hover:bg-zinc-600 transition-colors" onMouseDown={onMouseDown} title="Drag to resize" />
 
-          <div style={{ ...styles.panel, width: `${100 - leftWidth}%` }}>
-            <div style={styles.panelHeader}>RESPONSE</div>
+          <div className="flex flex-col overflow-hidden" style={{ width: `${100 - leftWidth}%` }}>
+            <div className="text-[10px] font-bold text-zinc-500 bg-zinc-900 border-b border-zinc-800 py-1 px-3 tracking-wider uppercase">RESPONSE</div>
             <ResponsePanel
               key={activeTabId}
               response={activeTab.response}
@@ -673,14 +674,18 @@ export default function App() {
       </div>
 
       {showCurl && (
-        <div style={styles.modalOverlay} onClick={() => setShowCurl(false)}>
-          <div style={styles.modalCard} onClick={(e) => e.stopPropagation()}>
-            <div style={styles.modalHeader}>
-              <span style={styles.modalTitle}>cURL Command</span>
-              <button onClick={() => setShowCurl(false)} style={styles.modalClose}>&times;</button>
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={() => setShowCurl(false)}>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-md p-4 w-[600px] max-w-[90vw] flex flex-col gap-3" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center">
+              <span className="text-[13px] font-semibold text-zinc-200">cURL Command</span>
+              <button onClick={() => setShowCurl(false)} className="text-zinc-500 text-lg hover:text-zinc-300 leading-none p-0 outline-none">
+                &times;
+              </button>
             </div>
-            <pre style={styles.modalPre}>{curlCommand}</pre>
-            <button onClick={handleCurlCopy} style={styles.modalCopyButton}>
+            <pre className="bg-zinc-950 border border-zinc-800 rounded p-2.5 m-0 text-xs text-zinc-400 whitespace-pre-wrap break-all max-h-[400px] overflow-y-auto">
+              {curlCommand}
+            </pre>
+            <button onClick={handleCurlCopy} className="self-end bg-transparent text-zinc-200 border border-zinc-700 hover:bg-zinc-800 rounded px-4 py-1.5 text-xs outline-none transition-colors">
               {curlCopied ? 'Copied!' : 'Copy'}
             </button>
           </div>
@@ -707,188 +712,4 @@ function shortUrl(url) {
   }
 }
 
-const styles = {
-  app: {
-    display: 'flex',
-    flexDirection: 'column',
-    height: '100vh',
-    backgroundColor: '#1e1e1e',
-    color: '#d4d4d4',
-    fontFamily: 'monospace',
-    overflow: 'hidden',
-  },
-  body: {
-    display: 'flex',
-    flex: 1,
-    overflow: 'hidden',
-  },
-  sidebar: {
-    width: '180px',
-    flexShrink: 0,
-    borderRight: '1px solid #3c3c3c',
-    padding: '12px',
-    overflowY: 'auto',
-  },
-  sidebarLabel: {
-    fontSize: '10px',
-    fontWeight: 700,
-    letterSpacing: '0.1em',
-    color: '#555',
-    margin: '0 0 8px 0',
-  },
-  sidebarEmpty: {
-    fontSize: '12px',
-    color: '#444',
-    margin: 0,
-  },
-  historyItem: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '2px',
-    width: '100%',
-    background: 'none',
-    border: '1px solid transparent',
-    borderRadius: '4px',
-    padding: '6px 8px',
-    marginBottom: '4px',
-    cursor: 'pointer',
-    textAlign: 'left',
-  },
-  historyMethod: {
-    fontSize: '10px',
-    fontWeight: 700,
-    fontFamily: 'monospace',
-  },
-  historyUrl: {
-    fontSize: '11px',
-    color: '#888',
-    fontFamily: 'monospace',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-  toolItem: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '2px',
-    width: '100%',
-    background: 'none',
-    border: '1px solid transparent',
-    borderRadius: '4px',
-    padding: '6px 8px',
-    marginBottom: '4px',
-    cursor: 'pointer',
-    textAlign: 'left',
-  },
-  toolItemSelected: {
-    backgroundColor: '#094771',
-    borderColor: '#0e639c',
-  },
-  toolName: {
-    fontSize: '11px',
-    fontWeight: 700,
-    fontFamily: 'monospace',
-    color: '#4ec9b0',
-  },
-  toolDesc: {
-    fontSize: '10px',
-    color: '#888',
-    fontFamily: 'monospace',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-  panels: {
-    display: 'flex',
-    flex: 1,
-    overflow: 'hidden',
-  },
-  panel: {
-    display: 'flex',
-    flexDirection: 'column',
-    overflow: 'hidden',
-    minWidth: 0,
-  },
-  panelHeader: {
-    fontSize: '10px',
-    fontWeight: 700,
-    letterSpacing: '0.1em',
-    color: '#555',
-    padding: '8px 16px 4px',
-    flexShrink: 0,
-  },
-  divider: {
-    width: '4px',
-    flexShrink: 0,
-    backgroundColor: '#3c3c3c',
-    cursor: 'col-resize',
-  },
-  modalOverlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000,
-  },
-  modalCard: {
-    backgroundColor: '#252526',
-    border: '1px solid #3c3c3c',
-    borderRadius: '8px',
-    padding: '20px',
-    maxWidth: '600px',
-    width: '90%',
-    maxHeight: '80vh',
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  modalHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '12px',
-  },
-  modalTitle: {
-    fontSize: '14px',
-    fontWeight: 700,
-    color: '#d4d4d4',
-  },
-  modalClose: {
-    background: 'none',
-    border: 'none',
-    color: '#888',
-    fontSize: '20px',
-    cursor: 'pointer',
-    padding: '0 4px',
-  },
-  modalPre: {
-    backgroundColor: '#1e1e1e',
-    border: '1px solid #3c3c3c',
-    borderRadius: '4px',
-    padding: '12px',
-    color: '#d4d4d4',
-    fontSize: '12px',
-    fontFamily: 'monospace',
-    whiteSpace: 'pre-wrap',
-    wordBreak: 'break-all',
-    overflowY: 'auto',
-    flex: 1,
-    margin: 0,
-  },
-  modalCopyButton: {
-    marginTop: '12px',
-    backgroundColor: '#0e639c',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '4px',
-    padding: '6px 20px',
-    fontSize: '13px',
-    fontFamily: 'monospace',
-    cursor: 'pointer',
-    alignSelf: 'flex-end',
-  },
-};
+

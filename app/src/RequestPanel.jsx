@@ -1,6 +1,10 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 import SchemaForm from './SchemaForm';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 function isFormCompatibleSchema(schema) {
   if (!schema || schema.type !== 'object' || !schema.properties) return false;
@@ -77,14 +81,13 @@ export default function RequestPanel({ body, setBody, headers, setHeaders, conte
     }
   }, [setBody]);
 
-  function handleTemplate(e) {
-    const tpl = TEMPLATES[e.target.value];
+  function handleTemplate(val) {
+    const tpl = TEMPLATES[val];
     if (tpl) {
       setBody(tpl);
       setJsonError(null);
       editorRef.current?.setValue(tpl);
     }
-    e.target.value = '';
   }
 
   function handleFormat() {
@@ -130,34 +133,43 @@ export default function RequestPanel({ body, setBody, headers, setHeaders, conte
   }, [setContext]);
 
   return (
-    <div style={styles.panel}>
-      <div style={styles.tabBar}>
+    <div className="flex flex-col h-full bg-zinc-900 overflow-hidden">
+      <div className="flex items-center border-b border-zinc-800 shrink-0 min-h-[28px]">
         {(mode === 'mcp' ? MCP_TABS : HTTP_TABS).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            style={{ ...styles.tab, ...(activeTab === tab ? styles.tabActive : {}) }}
+            className={cn(
+              "bg-transparent border-none border-r border-zinc-800 text-zinc-500 py-[5px] px-3 w-auto h-full text-[11px] font-semibold cursor-pointer outline-none transition-colors",
+              activeTab === tab && "bg-zinc-800 text-zinc-100"
+            )}
           >
             {tab}
           </button>
         ))}
         {activeTab === 'Body' && (
-          <div style={styles.tabActions}>
+          <div className="ml-auto mr-2 flex items-center gap-1.5">
             {canShowForm && (
               <>
                 <button
                   onClick={() => setViewMode('form')}
-                  style={{ ...styles.actionBtn, ...(viewMode === 'form' ? styles.toggleActive : {}) }}
+                  className={cn(
+                    "bg-transparent text-zinc-400 border border-zinc-800 rounded px-2 py-0.5 text-[10px] cursor-pointer hover:bg-zinc-800",
+                    viewMode === 'form' && "bg-zinc-800 text-zinc-100 border-zinc-700"
+                  )}
                 >
                   Form
                 </button>
                 <button
                   onClick={() => setViewMode('json')}
-                  style={{ ...styles.actionBtn, ...(viewMode === 'json' ? styles.toggleActive : {}) }}
+                  className={cn(
+                    "bg-transparent text-zinc-400 border border-zinc-800 rounded px-2 py-0.5 text-[10px] cursor-pointer hover:bg-zinc-800",
+                    viewMode === 'json' && "bg-zinc-800 text-zinc-100 border-zinc-700"
+                  )}
                 >
                   JSON
                 </button>
-                <span style={styles.toggleDivider} />
+                <span className="w-px h-3 bg-zinc-800 mx-1" />
               </>
             )}
             <button
@@ -167,28 +179,32 @@ export default function RequestPanel({ body, setBody, headers, setHeaders, conte
                 setBodyCopied(true);
                 setTimeout(() => setBodyCopied(false), 2000);
               }}
-              style={styles.actionBtn}
+              className="bg-transparent text-zinc-400 border border-zinc-800 rounded px-2 py-0.5 text-[10px] cursor-pointer hover:bg-zinc-800"
             >
               {bodyCopied ? 'Copied!' : 'Copy'}
             </button>
-            <button onClick={handleFormat} style={styles.actionBtn}>Format</button>
-            <select onChange={handleTemplate} style={styles.templateSelect} defaultValue="">
-              <option value="" disabled>Templates</option>
-              {Object.keys(TEMPLATES).map((name) => (
-                <option key={name} value={name}>{name}</option>
-              ))}
-            </select>
+            <button onClick={handleFormat} className="bg-transparent text-zinc-400 border border-zinc-800 rounded px-2 py-0.5 text-[10px] cursor-pointer hover:bg-zinc-800">Format</button>
+            <Select onValueChange={handleTemplate}>
+              <SelectTrigger className="w-[100px] h-5 min-h-5 text-[10px] bg-transparent border-zinc-800 text-zinc-400 px-2 py-0">
+                <SelectValue placeholder="Templates" />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.keys(TEMPLATES).map((name) => (
+                  <SelectItem key={name} value={name} className="text-[10px]">{name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         )}
       </div>
 
       {activeTab === 'Body' && (
-        <div style={styles.editorWrapper}>
+        <div className="flex-1 flex flex-col overflow-hidden p-2 gap-1.5">
           {selectedTool && (
-            <div style={styles.toolBanner}>
-              <span style={styles.toolBannerName}>{selectedTool.name}</span>
+            <div className="bg-zinc-900 text-zinc-200 border border-zinc-800 border-l-[2px] border-l-blue-500 rounded p-1.5 text-[11px] shrink-0 font-mono">
+              <span className="font-bold text-zinc-200">{selectedTool.name}</span>
               {selectedTool.description && (
-                <span style={styles.toolBannerDesc}> — {selectedTool.description}</span>
+                <span className="text-zinc-500"> — {selectedTool.description}</span>
               )}
             </div>
           )}
@@ -206,11 +222,11 @@ export default function RequestPanel({ body, setBody, headers, setHeaders, conte
           ) : (
             <>
               {jsonError && (
-                <div style={styles.errorBanner}>
-                  <span style={styles.errorIcon}>⚠</span> {jsonError}
+                <div className="bg-zinc-900 text-red-400 border border-red-900 rounded p-1.5 text-[11px] shrink-0 font-mono">
+                  <span className="mr-1">⚠</span> {jsonError}
                 </div>
               )}
-              <div style={styles.editorContainer}>
+              <div className="flex-1 border border-zinc-800 rounded overflow-hidden relative">
                 <Editor
                   defaultValue={body}
                   language="json"
@@ -237,28 +253,28 @@ export default function RequestPanel({ body, setBody, headers, setHeaders, conte
       )}
 
       {activeTab === 'Headers' && (
-        <div style={styles.headersWrapper}>
-          <div style={styles.headersToolbar}>
-            <button onClick={handleAddHeader} style={styles.actionBtn}>+ Add Header</button>
+        <div className="flex-1 flex flex-col overflow-hidden p-2 gap-1.5">
+          <div className="flex justify-end shrink-0">
+            <button onClick={handleAddHeader} className="bg-transparent text-zinc-400 border border-zinc-800 rounded px-2 py-0.5 text-[10px] cursor-pointer hover:bg-zinc-800">+ Add Header</button>
           </div>
-          <div style={styles.headerRows}>
+          <div className="flex-1 flex flex-col gap-1 overflow-y-auto">
             {headers.map((header, i) => (
-              <div key={i} style={styles.headerRow}>
-                <input
-                  style={styles.headerInput}
+              <div key={i} className="flex gap-1.5 items-center">
+                <Input
+                  className="flex-1 h-6 bg-transparent border-zinc-800 text-zinc-200 text-xs px-2 focus-visible:ring-1 focus-visible:ring-zinc-700"
                   placeholder="Header name"
                   value={header.key}
                   onChange={(e) => handleHeaderChange(i, 'key', e.target.value)}
                 />
-                <input
-                  style={{ ...styles.headerInput, flex: 2 }}
+                <Input
+                  className="flex-[2] h-6 bg-transparent border-zinc-800 text-zinc-200 text-xs px-2 focus-visible:ring-1 focus-visible:ring-zinc-700"
                   placeholder="Value"
                   value={header.value}
                   onChange={(e) => handleHeaderChange(i, 'value', e.target.value)}
                 />
                 <button
                   onClick={() => handleRemoveHeader(i)}
-                  style={styles.removeBtn}
+                  className="bg-transparent border-none text-zinc-500 text-base cursor-pointer px-1 rounded hover:text-red-400 hover:bg-zinc-800/50"
                   title="Remove header"
                 >
                   ×
@@ -270,32 +286,35 @@ export default function RequestPanel({ body, setBody, headers, setHeaders, conte
       )}
 
       {activeTab === 'Auth' && (
-        <div style={styles.headersWrapper}>
-          <div style={styles.headerRow}>
-            <label style={styles.authLabel}>Type</label>
-            <select
-              style={styles.authSelect}
+        <div className="flex-1 flex flex-col p-2 gap-2 overflow-y-auto">
+          <div className="flex gap-1.5 items-center">
+            <label className="text-[11px] font-semibold text-zinc-500 min-w-[60px] shrink-0">Type</label>
+            <Select
               value={auth?.type ?? 'none'}
-              onChange={(e) => {
-                const newType = e.target.value;
+              onValueChange={(val) => {
                 setAuth({
-                  type: newType,
+                  type: val,
                   token: auth?.token ?? '',
                   apiKey: auth?.apiKey ?? { key: '', value: '', addTo: 'header' },
                 });
               }}
             >
-              <option value="none">None</option>
-              <option value="bearer">Bearer Token</option>
-              <option value="apikey">API Key</option>
-            </select>
+              <SelectTrigger className="w-[150px] h-6 text-xs bg-transparent border-zinc-800 text-zinc-200">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none" className="text-xs">None</SelectItem>
+                <SelectItem value="bearer" className="text-xs">Bearer Token</SelectItem>
+                <SelectItem value="apikey" className="text-xs">API Key</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {auth?.type === 'bearer' && (
-            <div style={styles.headerRow}>
-              <label style={styles.authLabel}>Token</label>
-              <input
-                style={{ ...styles.headerInput, flex: 2 }}
+            <div className="flex gap-1.5 items-center">
+              <label className="text-[11px] font-semibold text-zinc-500 min-w-[60px] shrink-0">Token</label>
+              <Input
+                className="flex-[2] h-6 bg-transparent border-zinc-800 text-zinc-200 text-xs px-2 focus-visible:ring-1 focus-visible:ring-zinc-700"
                 placeholder="Enter bearer token"
                 value={auth.token}
                 onChange={(e) => setAuth({ ...auth, token: e.target.value })}
@@ -305,52 +324,56 @@ export default function RequestPanel({ body, setBody, headers, setHeaders, conte
 
           {auth?.type === 'apikey' && auth.apiKey && (
             <>
-              <div style={styles.headerRow}>
-                <label style={styles.authLabel}>Key</label>
-                <input
-                  style={styles.headerInput}
+              <div className="flex gap-1.5 items-center">
+                <label className="text-[11px] font-semibold text-zinc-500 min-w-[60px] shrink-0">Key</label>
+                <Input
+                  className="flex-1 h-6 bg-transparent border-zinc-800 text-zinc-200 text-xs px-2 focus-visible:ring-1 focus-visible:ring-zinc-700"
                   placeholder="e.g. X-API-Key"
                   value={auth.apiKey.key ?? ''}
                   onChange={(e) => setAuth({ ...auth, apiKey: { ...auth.apiKey, key: e.target.value } })}
                 />
               </div>
-              <div style={styles.headerRow}>
-                <label style={styles.authLabel}>Value</label>
-                <input
-                  style={{ ...styles.headerInput, flex: 2 }}
+              <div className="flex gap-1.5 items-center">
+                <label className="text-[11px] font-semibold text-zinc-500 min-w-[60px] shrink-0">Value</label>
+                <Input
+                  className="flex-[2] h-6 bg-transparent border-zinc-800 text-zinc-200 text-xs px-2 focus-visible:ring-1 focus-visible:ring-zinc-700"
                   placeholder="Enter API key value"
                   value={auth.apiKey.value ?? ''}
                   onChange={(e) => setAuth({ ...auth, apiKey: { ...auth.apiKey, value: e.target.value } })}
                 />
               </div>
-              <div style={styles.headerRow}>
-                <label style={styles.authLabel}>Add to</label>
-                <select
-                  style={styles.authSelect}
+              <div className="flex gap-1.5 items-center">
+                <label className="text-[11px] font-semibold text-zinc-500 min-w-[60px] shrink-0">Add to</label>
+                <Select
                   value={auth.apiKey.addTo ?? 'header'}
-                  onChange={(e) => setAuth({ ...auth, apiKey: { ...auth.apiKey, addTo: e.target.value } })}
+                  onValueChange={(val) => setAuth({ ...auth, apiKey: { ...auth.apiKey, addTo: val } })}
                 >
-                  <option value="header">Header</option>
-                  <option value="query">Query Param</option>
-                </select>
+                  <SelectTrigger className="w-[150px] h-6 text-xs bg-transparent border-zinc-800 text-zinc-200">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="header" className="text-xs">Header</SelectItem>
+                    <SelectItem value="query" className="text-xs">Query Param</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </>
           )}
 
           {auth?.type === 'none' && (
-            <p style={styles.authNoneText}>No authentication</p>
+            <p className="text-[11px] text-zinc-500 mt-2">No authentication</p>
           )}
         </div>
       )}
 
       {activeTab === 'Context' && (
-        <div style={styles.editorWrapper}>
+        <div className="flex-1 flex flex-col overflow-hidden p-2 gap-1.5">
           {contextError && (
-            <div style={styles.errorBanner}>
-              <span style={styles.errorIcon}>⚠</span> {contextError}
+            <div className="bg-zinc-900 text-red-400 border border-red-900 rounded p-1.5 text-[11px] shrink-0 font-mono">
+              <span className="mr-1">⚠</span> {contextError}
             </div>
           )}
-          <div style={styles.editorContainer}>
+          <div className="flex-1 border border-zinc-800 rounded overflow-hidden relative">
             <Editor
               defaultValue={context}
               language="json"
@@ -376,185 +399,3 @@ export default function RequestPanel({ body, setBody, headers, setHeaders, conte
     </div>
   );
 }
-
-const styles = {
-  panel: {
-    display: 'flex',
-    flexDirection: 'column',
-    height: '100%',
-    overflow: 'hidden',
-  },
-  tabBar: {
-    display: 'flex',
-    alignItems: 'center',
-    borderBottom: '1px solid #3c3c3c',
-    flexShrink: 0,
-  },
-  tab: {
-    background: 'none',
-    border: 'none',
-    borderBottom: '2px solid transparent',
-    color: '#888',
-    padding: '8px 16px',
-    fontSize: '12px',
-    fontFamily: 'monospace',
-    cursor: 'pointer',
-    marginBottom: '-1px',
-  },
-  tabActive: {
-    color: '#d4d4d4',
-    borderBottomColor: '#0e639c',
-  },
-  tabActions: {
-    marginLeft: 'auto',
-    marginRight: '12px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-  },
-  actionBtn: {
-    backgroundColor: 'transparent',
-    color: '#888',
-    border: '1px solid #3c3c3c',
-    borderRadius: '4px',
-    padding: '3px 10px',
-    fontSize: '11px',
-    fontFamily: 'monospace',
-    cursor: 'pointer',
-  },
-  toggleActive: {
-    backgroundColor: '#094771',
-    color: '#d4d4d4',
-    borderColor: '#094771',
-  },
-  toggleDivider: {
-    width: '1px',
-    height: '16px',
-    backgroundColor: '#3c3c3c',
-  },
-  templateSelect: {
-    backgroundColor: '#2d2d2d',
-    color: '#888',
-    border: '1px solid #3c3c3c',
-    borderRadius: '4px',
-    padding: '3px 8px',
-    fontSize: '11px',
-    fontFamily: 'monospace',
-    cursor: 'pointer',
-    outline: 'none',
-  },
-  editorWrapper: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    overflow: 'hidden',
-    padding: '12px',
-    gap: '8px',
-  },
-  toolBanner: {
-    backgroundColor: '#1a2a3a',
-    color: '#d4d4d4',
-    border: '1px solid #264f78',
-    borderRadius: '4px',
-    padding: '6px 10px',
-    fontSize: '12px',
-    fontFamily: 'monospace',
-    flexShrink: 0,
-  },
-  toolBannerName: {
-    color: '#4ec9b0',
-    fontWeight: 700,
-  },
-  toolBannerDesc: {
-    color: '#888',
-  },
-  errorBanner: {
-    backgroundColor: '#3a1a1a',
-    color: '#f48771',
-    border: '1px solid #5a2a2a',
-    borderRadius: '4px',
-    padding: '6px 10px',
-    fontSize: '12px',
-    fontFamily: 'monospace',
-    flexShrink: 0,
-  },
-  errorIcon: {
-    marginRight: '4px',
-  },
-  editorContainer: {
-    flex: 1,
-    border: '1px solid #3c3c3c',
-    borderRadius: '4px',
-    overflow: 'hidden',
-  },
-  headersWrapper: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    overflow: 'hidden',
-    padding: '12px',
-    gap: '8px',
-  },
-  headersToolbar: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    flexShrink: 0,
-  },
-  headerRows: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '6px',
-    overflowY: 'auto',
-  },
-  headerRow: {
-    display: 'flex',
-    gap: '8px',
-    alignItems: 'center',
-  },
-  headerInput: {
-    flex: 1,
-    backgroundColor: '#2d2d2d',
-    color: '#d4d4d4',
-    border: '1px solid #3c3c3c',
-    borderRadius: '4px',
-    padding: '6px 10px',
-    fontSize: '13px',
-    fontFamily: 'monospace',
-    outline: 'none',
-  },
-  authLabel: {
-    fontSize: '12px',
-    fontFamily: 'monospace',
-    color: '#888',
-    minWidth: '60px',
-    flexShrink: 0,
-  },
-  authSelect: {
-    backgroundColor: '#2d2d2d',
-    color: '#d4d4d4',
-    border: '1px solid #3c3c3c',
-    borderRadius: '4px',
-    padding: '6px 10px',
-    fontSize: '13px',
-    fontFamily: 'monospace',
-    outline: 'none',
-    cursor: 'pointer',
-  },
-  authNoneText: {
-    fontSize: '12px',
-    color: '#555',
-    fontFamily: 'monospace',
-    margin: '8px 0 0 0',
-  },
-  removeBtn: {
-    background: 'none',
-    border: 'none',
-    color: '#666',
-    fontSize: '18px',
-    cursor: 'pointer',
-    padding: '2px 6px',
-    lineHeight: 1,
-    borderRadius: '4px',
-  },
-};

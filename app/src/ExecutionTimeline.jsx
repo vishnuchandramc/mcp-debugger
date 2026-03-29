@@ -45,18 +45,18 @@ function formatJson(value) {
 
 function Step({ number, label, color, children }) {
   return (
-    <div style={styles.step}>
-      <div style={styles.stepHeader}>
-        <span style={{ ...styles.stepBadge, backgroundColor: color }}>{number}</span>
-        <span style={styles.stepLabel}>{label}</span>
+    <div className="bg-zinc-950 border border-zinc-800 rounded-md py-2 px-2.5">
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <span className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[9px] font-bold text-white shrink-0" style={{ backgroundColor: color }}>{number}</span>
+        <span className="text-[11px] font-semibold text-zinc-200">{label}</span>
       </div>
-      <div style={styles.stepBody}>{children}</div>
+      <div className="pl-[22px]">{children}</div>
     </div>
   );
 }
 
 function Arrow() {
-  return <div style={styles.arrow}>&#8595;</div>;
+  return <div className="text-center text-zinc-600 text-[14px] leading-none py-0.5">&#8595;</div>;
 }
 
 export default function ExecutionTimeline({ requestBody, response, toolExecution }) {
@@ -70,10 +70,10 @@ export default function ExecutionTimeline({ requestBody, response, toolExecution
   const hasTool = toolExecution != null;
 
   return (
-    <div style={styles.container}>
+    <div className="flex flex-col gap-0">
       {/* Step 1: Prompt */}
       <Step number={1} label="Prompt" color="#0e639c">
-        <pre style={styles.code}>{prompt ?? 'N/A'}</pre>
+        <pre className="m-0 text-[11px] whitespace-pre-wrap break-words text-zinc-400 leading-relaxed bg-zinc-900 border border-zinc-800 rounded p-1.5 max-h-[150px] overflow-auto font-mono">{prompt ?? 'N/A'}</pre>
       </Step>
 
       <Arrow />
@@ -82,14 +82,14 @@ export default function ExecutionTimeline({ requestBody, response, toolExecution
         <>
           {/* Step 2: Model Decision */}
           <Step number={2} label="Model Decision" color="#c586c0">
-            <div style={styles.field}>
-              <span style={styles.fieldLabel}>Selected tool:</span>
-              <span style={styles.fieldValue}>{toolExecution.name ?? 'N/A'}</span>
+            <div className="mb-1">
+              <span className="text-[10px] text-zinc-500 font-semibold mr-1.5">Selected tool:</span>
+              <span className="text-[11px] text-zinc-200">{toolExecution.name ?? 'N/A'}</span>
             </div>
             {toolExecution.arguments != null && (
-              <div style={styles.field}>
-                <span style={styles.fieldLabel}>Arguments:</span>
-                <pre style={styles.code}>{formatJson(toolExecution.arguments)}</pre>
+              <div className="mb-1">
+                <span className="text-[10px] text-zinc-500 font-semibold mr-1.5">Arguments:</span>
+                <pre className="m-0 text-[11px] whitespace-pre-wrap break-words text-zinc-400 leading-relaxed bg-zinc-900 border border-zinc-800 rounded p-1.5 max-h-[150px] overflow-auto font-mono">{formatJson(toolExecution.arguments)}</pre>
               </div>
             )}
           </Step>
@@ -98,9 +98,9 @@ export default function ExecutionTimeline({ requestBody, response, toolExecution
 
           {/* Step 3: Tool Call */}
           <Step number={3} label="Tool Call" color="#dcdcaa">
-            <div style={styles.field}>
-              <span style={styles.fieldLabel}>Calling:</span>
-              <span style={styles.fieldValue}>
+            <div className="mb-1">
+              <span className="text-[10px] text-zinc-500 font-semibold mr-1.5">Calling:</span>
+              <span className="text-[11px] text-zinc-200">
                 {toolExecution.name ?? 'N/A'}({toolExecution.arguments != null ? '...' : ''})
               </span>
             </div>
@@ -110,7 +110,7 @@ export default function ExecutionTimeline({ requestBody, response, toolExecution
 
           {/* Step 4: Tool Response */}
           <Step number={4} label="Tool Response" color="#4ec9b0">
-            <pre style={styles.code}>
+            <pre className="m-0 text-[11px] whitespace-pre-wrap break-words text-zinc-400 leading-relaxed bg-zinc-900 border border-zinc-800 rounded p-1.5 max-h-[150px] overflow-auto font-mono">
               {toolExecution.output != null ? formatJson(toolExecution.output) : 'N/A'}
             </pre>
           </Step>
@@ -119,14 +119,14 @@ export default function ExecutionTimeline({ requestBody, response, toolExecution
 
           {/* Step 5: Final Output */}
           <Step number={5} label="Final Output" color="#9cdcfe">
-            <pre style={styles.code}>{finalOutput ?? 'N/A'}</pre>
+            <pre className="m-0 text-[11px] whitespace-pre-wrap break-words text-zinc-400 leading-relaxed bg-zinc-900 border border-zinc-800 rounded p-1.5 max-h-[150px] overflow-auto font-mono">{finalOutput ?? 'N/A'}</pre>
           </Step>
         </>
       ) : (
         <>
           {/* No tool — skip straight to final output */}
           <Step number={2} label="Final Output" color="#9cdcfe">
-            <pre style={styles.code}>{finalOutput ?? formatJson(parsedResponse) ?? 'N/A'}</pre>
+            <pre className="m-0 text-[11px] whitespace-pre-wrap break-words text-zinc-400 leading-relaxed bg-zinc-900 border border-zinc-800 rounded p-1.5 max-h-[150px] overflow-auto font-mono">{finalOutput ?? formatJson(parsedResponse) ?? 'N/A'}</pre>
           </Step>
         </>
       )}
@@ -134,79 +134,3 @@ export default function ExecutionTimeline({ requestBody, response, toolExecution
   );
 }
 
-const styles = {
-  container: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0',
-  },
-  step: {
-    backgroundColor: '#252526',
-    border: '1px solid #3c3c3c',
-    borderRadius: '6px',
-    padding: '10px 12px',
-  },
-  stepHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    marginBottom: '8px',
-  },
-  stepBadge: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '20px',
-    height: '20px',
-    borderRadius: '50%',
-    fontSize: '11px',
-    fontWeight: 700,
-    color: '#fff',
-    flexShrink: 0,
-  },
-  stepLabel: {
-    fontSize: '12px',
-    fontWeight: 600,
-    color: '#d4d4d4',
-    fontFamily: 'monospace',
-  },
-  stepBody: {
-    paddingLeft: '28px',
-  },
-  arrow: {
-    textAlign: 'center',
-    color: '#555',
-    fontSize: '16px',
-    lineHeight: '20px',
-    padding: '2px 0',
-  },
-  field: {
-    marginBottom: '6px',
-  },
-  fieldLabel: {
-    fontSize: '11px',
-    color: '#888',
-    fontFamily: 'monospace',
-    marginRight: '6px',
-  },
-  fieldValue: {
-    fontSize: '12px',
-    color: '#4ec9b0',
-    fontFamily: 'monospace',
-  },
-  code: {
-    margin: 0,
-    fontSize: '12px',
-    fontFamily: 'monospace',
-    whiteSpace: 'pre-wrap',
-    wordBreak: 'break-word',
-    color: '#dcdcaa',
-    lineHeight: '1.5',
-    backgroundColor: '#1e1e1e',
-    border: '1px solid #3c3c3c',
-    borderRadius: '4px',
-    padding: '6px 8px',
-    maxHeight: '150px',
-    overflow: 'auto',
-  },
-};

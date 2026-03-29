@@ -1,4 +1,14 @@
 import React from 'react';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
 const MODES = ['HTTP', 'MCP'];
@@ -31,36 +41,38 @@ export default function TopBar({
   onCurlImport,
 }) {
   return (
-    <div style={styles.bar}>
-      <span style={styles.appName}>MCP Debugger</span>
-      <div style={styles.requestRow}>
+    <div className="flex items-center gap-3 py-1.5 px-3 bg-zinc-950 border-b border-zinc-800 shrink-0">
+      <span className="text-[11px] font-bold text-zinc-500 whitespace-nowrap tracking-wider uppercase">MCP Debugger</span>
+      <div className="flex items-center gap-1.5 flex-1">
         {/* Mode selector */}
-        <select
-          value={mode.toUpperCase()}
-          onChange={(e) => setMode(e.target.value.toLowerCase())}
-          style={styles.modeSelect}
-        >
-          {MODES.map((m) => (
-            <option key={m} value={m}>
-              {m}
-            </option>
-          ))}
-        </select>
+        <Select value={mode} onValueChange={(val) => setMode(val)}>
+          <SelectTrigger className="w-[80px] h-6 text-[11px] font-bold bg-zinc-900 border-zinc-700 text-zinc-200">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {MODES.map((m) => (
+              <SelectItem key={m.toLowerCase()} value={m.toLowerCase()} className="text-[11px] font-bold">
+                {m}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
         {mode === 'http' ? (
           <>
-            <select
-              value={method}
-              onChange={(e) => setMethod(e.target.value)}
-              style={{ ...styles.methodSelect, color: METHOD_COLORS[method] }}
-            >
-              {METHODS.map((m) => (
-                <option key={m} value={m} style={{ color: METHOD_COLORS[m] }}>
-                  {m}
-                </option>
-              ))}
-            </select>
-            <input
+            <Select value={method} onValueChange={(val) => setMethod(val)}>
+              <SelectTrigger className="w-[85px] h-6 text-[11px] font-bold bg-transparent border-zinc-800" style={{ color: METHOD_COLORS[method] }}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {METHODS.map((m) => (
+                  <SelectItem key={m} value={m} className="text-[11px] font-bold" style={{ color: METHOD_COLORS[m] }}>
+                    {m}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input
               type="text"
               value={endpoint}
               onChange={(e) => setEndpoint(e.target.value)}
@@ -72,60 +84,67 @@ export default function TopBar({
                 }
               }}
               placeholder="https://example.com/api/endpoint"
-              style={styles.endpointInput}
+              className="flex-1 h-6 bg-transparent border-zinc-800 text-zinc-200 text-xs px-2 focus-visible:ring-1 focus-visible:ring-zinc-700"
               spellCheck={false}
             />
-            <button
+            <Button
               onClick={onRun}
               disabled={loading}
-              style={{ ...styles.runButton, ...(loading ? styles.runButtonDisabled : {}) }}
+              variant="outline"
+              size="sm"
+              className="h-6 px-3 text-[11px] font-semibold bg-transparent border-zinc-700 text-zinc-200 hover:bg-zinc-800"
             >
               {loading ? 'Running…' : 'Run'}
-            </button>
-            <button onClick={onGenerateCurl} style={styles.curlButton}>
+            </Button>
+            <Button 
+              onClick={onGenerateCurl} 
+              variant="outline" 
+              size="sm" 
+              className="h-6 px-2 text-[11px] bg-transparent border-zinc-800 text-zinc-500 hover:text-zinc-300"
+            >
               cURL
-            </button>
+            </Button>
           </>
         ) : (
           <>
-            <input
+            <Input
               type="text"
               value={mcpUrl}
               onChange={(e) => setMcpUrl(e.target.value)}
               placeholder="http://localhost:3000/sse"
-              style={styles.endpointInput}
+              className="flex-1 h-6 bg-transparent border-zinc-800 text-zinc-200 text-xs px-2 focus-visible:ring-1 focus-visible:ring-zinc-700"
               spellCheck={false}
               disabled={mcpConnected || mcpConnecting}
             />
             {!mcpConnected ? (
-              <button
+              <Button
                 onClick={onConnect}
                 disabled={mcpConnecting}
-                style={{
-                  ...styles.connectButton,
-                  ...(mcpConnecting ? styles.runButtonDisabled : {}),
-                }}
+                variant="outline"
+                size="sm"
+                className="h-6 px-3 text-[11px] font-semibold bg-transparent border-zinc-700 text-zinc-200 hover:bg-zinc-800"
               >
                 {mcpConnecting ? 'Connecting…' : 'Connect'}
-              </button>
+              </Button>
             ) : (
-              <button
+              <Button
                 onClick={onDisconnect}
-                style={styles.disconnectButton}
+                variant="outline"
+                size="sm"
+                className="h-6 px-3 text-[11px] font-semibold bg-transparent border-red-900 text-red-400 hover:bg-red-950 hover:text-red-300"
               >
                 Disconnect
-              </button>
+              </Button>
             )}
-            <button
+            <Button
               onClick={onRun}
               disabled={loading || !mcpConnected || !selectedTool}
-              style={{
-                ...styles.runButton,
-                ...(loading || !mcpConnected || !selectedTool ? styles.runButtonDisabled : {}),
-              }}
+              variant="outline"
+              size="sm"
+              className="h-6 px-3 text-[11px] font-semibold bg-transparent border-zinc-700 text-zinc-200 hover:bg-zinc-800 disabled:opacity-50"
             >
               {loading ? 'Running…' : 'Run'}
-            </button>
+            </Button>
           </>
         )}
       </div>
@@ -133,111 +152,4 @@ export default function TopBar({
   );
 }
 
-const styles = {
-  bar: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    padding: '10px 16px',
-    backgroundColor: '#252526',
-    borderBottom: '1px solid #3c3c3c',
-    flexShrink: 0,
-  },
-  appName: {
-    fontSize: '12px',
-    fontWeight: 600,
-    color: '#888',
-    whiteSpace: 'nowrap',
-    letterSpacing: '0.05em',
-  },
-  requestRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    flex: 1,
-  },
-  modeSelect: {
-    backgroundColor: '#1a3a4a',
-    color: '#569cd6',
-    border: '1px solid #3c3c3c',
-    borderRadius: '4px',
-    padding: '6px 8px',
-    fontSize: '12px',
-    fontWeight: 700,
-    fontFamily: 'monospace',
-    cursor: 'pointer',
-    outline: 'none',
-    flexShrink: 0,
-  },
-  methodSelect: {
-    backgroundColor: '#2d2d2d',
-    border: '1px solid #3c3c3c',
-    borderRadius: '4px',
-    padding: '6px 8px',
-    fontSize: '12px',
-    fontWeight: 700,
-    fontFamily: 'monospace',
-    cursor: 'pointer',
-    outline: 'none',
-    flexShrink: 0,
-  },
-  endpointInput: {
-    flex: 1,
-    backgroundColor: '#2d2d2d',
-    color: '#d4d4d4',
-    border: '1px solid #3c3c3c',
-    borderRadius: '4px',
-    padding: '6px 10px',
-    fontSize: '13px',
-    fontFamily: 'monospace',
-    outline: 'none',
-  },
-  runButton: {
-    backgroundColor: '#0e639c',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '4px',
-    padding: '6px 20px',
-    fontSize: '13px',
-    fontFamily: 'monospace',
-    cursor: 'pointer',
-    flexShrink: 0,
-  },
-  runButtonDisabled: {
-    backgroundColor: '#3c3c3c',
-    cursor: 'not-allowed',
-  },
-  connectButton: {
-    backgroundColor: '#0e639c',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '4px',
-    padding: '6px 16px',
-    fontSize: '13px',
-    fontFamily: 'monospace',
-    cursor: 'pointer',
-    flexShrink: 0,
-  },
-  curlButton: {
-    backgroundColor: 'transparent',
-    color: '#888',
-    border: '1px solid #3c3c3c',
-    borderRadius: '4px',
-    padding: '6px 12px',
-    fontSize: '13px',
-    fontFamily: 'monospace',
-    cursor: 'pointer',
-    flexShrink: 0,
-  },
-  disconnectButton: {
-    backgroundColor: '#6c2020',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '4px',
-    padding: '6px 16px',
-    fontSize: '13px',
-    fontFamily: 'monospace',
-    cursor: 'pointer',
-    flexShrink: 0,
-  },
-};
+
