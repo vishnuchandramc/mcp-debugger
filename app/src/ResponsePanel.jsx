@@ -1,7 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import ExecutionTimeline from './ExecutionTimeline.jsx';
 import Editor from '@monaco-editor/react';
 import { cn } from "@/lib/utils";
+
+function detectAIResponse(parsed) {
+  if (!parsed || typeof parsed !== 'object') return null;
+  // OpenAI format
+  if (Array.isArray(parsed.choices) && parsed.choices[0]?.message?.content) {
+    return { type: 'openai', content: parsed.choices[0].message.content };
+  }
+  // Claude format
+  if (Array.isArray(parsed.content)) {
+    const textBlock = parsed.content.find(c => c.type === 'text' && typeof c.text === 'string');
+    if (textBlock) return { type: 'claude', content: textBlock.text };
+  }
+  // Generic: has text/output/result alongside model or usage
+  if (parsed.model || parsed.usage) {
+    const text = parsed.text ?? parsed.output ?? parsed.result;
+    if (typeof text === 'string') return { type: 'generic', content: text };
+  }
+  return null;
+}
 
 function StatusBadge({ status }) {
   if (!status) return null;
@@ -17,13 +36,36 @@ function StatusBadge({ status }) {
 export default function ResponsePanel({ response, rawResponse, isError, toolExecution, requestBody, mode, responseMeta }) {
   const [activeTab, setActiveTab] = useState('Pretty');
   const [copied, setCopied] = useState(false);
+  const prevAIRef = useRef(false);
 
-  const hasTimeline = mode === 'mcp' && toolExecution != null;
-  const tabs = hasTimeline ? ['Pretty', 'Raw', 'Timeline'] : ['Pretty', 'Raw'];
-  const effectiveTab = (!hasTimeline && activeTab === 'Timeline') ? 'Pretty' : activeTab;
+  // Parse response once for AI detection
+  let parsedResponse = null;
+  try { parsedResponse = response ? JSON.parse(response) : null; } catch {}
+
+  const aiResponse = detectAIResponse(parsedResponse);
+  const hasToolCall = toolExecution != null;
+  const isAI = aiResponse != null;
+
+  // Build tabs conditionally
+  const tabs = (() => {
+    const t = ['Pretty', 'Raw'];
+    if (isAI) t.splice(1, 0, 'Assistant');
+    if (hasToolCall) t.push('Timeline');
+    return t;
+  })();
+
+  // Auto-switch to Assistant tab when AI is first detected
+  useEffect(() => {
+    if (isAI && !prevAIRef.current) {
+      setActiveTab('Assistant');
+    }
+    prevAIRef.current = isAI;
+  }, [isAI]);
+
+  const effectiveTab = tabs.includes(activeTab) ? activeTab : 'Pretty';
 
   function handleCopy() {
-    const text = effectiveTab === 'Pretty' ? response : rawResponse;
+    const text = effectiveTab === 'Assistant' ? (aiResponse?.content ?? '') : effectiveTab === 'Pretty' ? response : rawResponse;
     if (!text) return;
     navigator.clipboard.writeText(text);
     setCopied(true);
@@ -59,7 +101,7 @@ export default function ResponsePanel({ response, rawResponse, isError, toolExec
             {tab}
           </button>
         ))}
-        {(effectiveTab === 'Pretty' || effectiveTab === 'Raw') && hasResponse && (
+        {(effectiveTab === 'Pretty' || effectiveTab === 'Raw' || effectiveTab === 'Assistant') && hasResponse && (
           <div className="ml-auto mr-2 flex items-center">
             <button
               onClick={handleCopy}
@@ -124,11 +166,44 @@ export default function ResponsePanel({ response, rawResponse, isError, toolExec
         </div>
       )}
 
+      {/* AI detection badges */}
+      {isAI && hasResponse && (
+        <div className="flex items-center gap-2 px-3 py-1 border-b border-zinc-800 shrink-0">
+          <span className="text-[10px] font-semibold bg-blue-500/10 text-blue-400 px-1.5 py-0.5 rounded-sm">
+            AI Response
+          </span>
+          {hasToolCall && (
+            <span className="text-[10px] font-semibold bg-amber-500/10 text-amber-400 px-1.5 py-0.5 rounded-sm">
+              Tool Call
+            </span>
+          )}
+          {parsedResponse?.model && (
+            <span className="text-[10px] text-zinc-500">{parsedResponse.model}</span>
+          )}
+        </div>
+      )}
+
       {/* Response content */}
       <div className="flex-1 overflow-hidden flex flex-col">
         {!hasResponse ? (
           <div className="p-2">
             <p className="text-zinc-500 text-xs m-0">Send a request to see the response.</p>
+          </div>
+        ) : effectiveTab === 'Assistant' ? (
+          <div className="flex-1 overflow-auto p-3 flex flex-col gap-2">
+            {parsedResponse?.model || parsedResponse?.usage ? (
+              <div className="flex items-center gap-3 text-[10px] text-zinc-500 font-mono pb-1 border-b border-zinc-800">
+                {parsedResponse.model && <span>Model: {parsedResponse.model}</span>}
+                {parsedResponse.usage && (
+                  <span>
+                    Tokens: {parsedResponse.usage.prompt_tokens ?? parsedResponse.usage.input_tokens ?? '?'} in / {parsedResponse.usage.completion_tokens ?? parsedResponse.usage.output_tokens ?? '?'} out
+                  </span>
+                )}
+              </div>
+            ) : null}
+            <pre className="m-0 text-[13px] whitespace-pre-wrap break-words text-zinc-200 leading-relaxed font-mono">
+              {aiResponse?.content ?? ''}
+            </pre>
           </div>
         ) : effectiveTab === 'Timeline' ? (
           <div className="flex-1 overflow-auto p-2">
