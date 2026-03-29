@@ -239,6 +239,46 @@ export default function App() {
   const activeTab = tabs.find(t => t.id === activeTabId);
   const mode = activeTab?.mode || 'http';
 
+  const [showSettings, setShowSettings] = useState(false);
+  const [settings, setSettings] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('mcp_debugger_settings')) || { defaultMethod: 'POST' };
+    } catch {
+      return { defaultMethod: 'POST' };
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('mcp_debugger_settings', JSON.stringify(settings));
+  }, [settings]);
+
+  const activeTabIdRef = useRef(activeTabId);
+  const activeTabRef = useRef(activeTab);
+
+  useEffect(() => {
+    activeTabIdRef.current = activeTabId;
+    activeTabRef.current = activeTab;
+  }, [activeTabId, activeTab]);
+
+  useEffect(() => {
+    if (window.electronAPI) {
+      window.electronAPI.onOpenSettings(() => setShowSettings(true));
+      window.electronAPI.onImportData((parsedData) => {
+        setTabs(prev => prev.map(t => t.id === activeTabIdRef.current ? { ...t, ...parsedData } : t));
+      });
+      window.electronAPI.onTriggerExport(() => {
+        const tab = activeTabRef.current;
+        if (!tab) return;
+        const data = {
+          name: tab.name, method: tab.method, endpoint: tab.endpoint,
+          headers: tab.headers, body: tab.body, context: tab.context, auth: tab.auth,
+        };
+        const defaultName = `${(tab.name || 'request').replace(/[^a-z0-9]/gi, '_').toLowerCase()}.json`;
+        window.electronAPI.saveFile(JSON.stringify(data, null, 2), defaultName);
+      });
+    }
+  }, []);
+
   function updateTab(tabId, fields) {
     setTabs(prev => prev.map(t => t.id === tabId ? { ...t, ...fields } : t));
   }
@@ -271,7 +311,7 @@ export default function App() {
     const tab = {
       id, name: `Untitled ${num}`,
       mode: 'http',
-      method: 'POST', endpoint: DEFAULT_ENDPOINT,
+      method: settings.defaultMethod || 'POST', endpoint: DEFAULT_ENDPOINT,
       body: DEFAULT_BODY, headers: DEFAULT_HEADERS, context: DEFAULT_CONTEXT, auth: DEFAULT_AUTH,
       response: null, rawResponse: null, isError: false,
       toolExecution: null, loading: false,
@@ -653,6 +693,77 @@ export default function App() {
           </div>
         </div>
       </div>
+
+      {showSettings && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={() => setShowSettings(false)}>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-none p-5 w-[400px] max-w-[90vw] flex flex-col gap-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center pb-2 border-b border-zinc-800">
+              <span className="text-[14px] font-bold text-zinc-100 uppercase tracking-wider">Preferences</span>
+              <button 
+                onClick={() => setShowSettings(false)} 
+                className="text-zinc-500 text-lg hover:text-zinc-300 leading-none p-0 outline-none bg-transparent border-none cursor-pointer"
+              >
+                &times;
+              </button>
+            </div>
+            
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wide">Default HTTP Method</label>
+                <Select 
+                  value={settings?.defaultMethod || 'POST'} 
+                  onValueChange={(val) => setSettings({ ...settings, defaultMethod: val })}
+                >
+                  <SelectTrigger className="w-full h-8 text-[12px] font-bold bg-zinc-950 border-zinc-800 text-zinc-200">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].map((m) => (
+                      <SelectItem key={m} value={m} className="text-[12px] font-bold">{m}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex flex-col gap-1.5 mt-2">
+                <label className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wide">Save Request History</label>
+                <div className="flex items-center gap-2 mt-1">
+                  <input 
+                    type="checkbox" 
+                    id="saveHistory" 
+                    checked={settings?.saveHistory !== false}
+                    onChange={(e) => setSettings({ ...settings, saveHistory: e.target.checked })}
+                    className="accent-zinc-500 w-3.5 h-3.5 cursor-pointer"
+                  />
+                  <label htmlFor="saveHistory" className="text-[12px] text-zinc-300 cursor-pointer">
+                    Enable automatic history tracking
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5 mt-3 pt-4 border-t border-zinc-800">
+                <div 
+                  onClick={() => {
+                    if (confirm('Clear all workspace data and history? \n\nThis cannot be undone and will overwrite all stored tabs in localStorage.')) {
+                      localStorage.removeItem('mcp_debugger_tabs');
+                      localStorage.removeItem('mcp_debugger_history');
+                      window.location.reload();
+                    }
+                  }}
+                  className="w-full h-8 text-[11px] font-bold border border-red-900/50 text-red-500 hover:bg-red-950/50 hover:text-red-400 bg-transparent flex items-center justify-center cursor-pointer transition-colors"
+                >
+                  Clear Entire Workspace Data
+                </div>
+              </div>
+            </div>
+            
+            <div className="mt-2 pt-3 border-t border-zinc-800 flex items-center justify-between">
+              <span className="text-[10px] text-zinc-500 font-mono">MCP Debugger Frontend</span>
+              <span className="text-[10px] text-zinc-500 font-mono font-bold">v0.1.0</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showCurl && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={() => setShowCurl(false)}>
