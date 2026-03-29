@@ -46,7 +46,7 @@ const TEMPLATES = {
   ),
 };
 
-export default function RequestPanel({ body, setBody, headers, setHeaders, context, setContext, auth, setAuth, selectedTool, mode }) {
+export default function RequestPanel({ body, setBody, headers, setHeaders, context, setContext, auth, setAuth, selectedTool, mode, savedApiKeys }) {
   const [activeTab, setActiveTab] = useState('Headers');
   const [jsonError, setJsonError] = useState(null);
   const [contextError, setContextError] = useState(null);
@@ -315,6 +315,9 @@ export default function RequestPanel({ body, setBody, headers, setHeaders, conte
                 <SelectItem value="none" className="text-xs">None</SelectItem>
                 <SelectItem value="bearer" className="text-xs">Bearer Token</SelectItem>
                 <SelectItem value="apikey" className="text-xs">API Key</SelectItem>
+                {savedApiKeys?.length > 0 && (
+                  <SelectItem value="saved" className="text-xs">Saved Key</SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -366,6 +369,34 @@ export default function RequestPanel({ body, setBody, headers, setHeaders, conte
                   </SelectContent>
                 </Select>
               </div>
+            </>
+          )}
+
+          {auth?.type === 'saved' && savedApiKeys?.length > 0 && (
+            <>
+              <div className="flex gap-1.5 items-center">
+                <label className="text-[11px] font-semibold text-zinc-500 min-w-[60px] shrink-0">Key</label>
+                <Select
+                  value={auth.savedKeyName ?? ''}
+                  onValueChange={(val) => setAuth({ ...auth, savedKeyName: val })}
+                >
+                  <SelectTrigger className="w-[200px] h-6 text-xs bg-transparent border-zinc-800 text-zinc-200">
+                    <SelectValue placeholder="Select a saved key" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {savedApiKeys.map((k) => (
+                      <SelectItem key={k.name} value={k.name} className="text-xs">{k.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {auth.savedKeyName && (
+                <div className="flex items-center gap-2 mt-1 ml-[68px]">
+                  <span className="text-[10px] font-semibold bg-blue-500/10 text-blue-400 px-1.5 py-0.5 rounded-sm">
+                    Bearer token will be injected from saved key
+                  </span>
+                </div>
+              )}
             </>
           )}
 

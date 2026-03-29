@@ -99,7 +99,7 @@ function StatusBadge({ status }) {
   return <span className={`${color} ${bg} px-1.5 py-0.5 text-[11px] font-bold rounded-sm`}>{status}</span>;
 }
 
-export default function ResponsePanel({ response, rawResponse, isError, toolExecution, requestBody, mode, responseMeta }) {
+export default function ResponsePanel({ response, rawResponse, isError, toolExecution, requestBody, mode, responseMeta, enableAIDetection, enableToolCallDetection }) {
   const [activeTab, setActiveTab] = useState('Pretty');
   const [copied, setCopied] = useState(false);
   const prevAIRef = useRef(false);
@@ -108,8 +108,8 @@ export default function ResponsePanel({ response, rawResponse, isError, toolExec
   let parsedResponse = null;
   try { parsedResponse = response ? JSON.parse(response) : null; } catch {}
 
-  const aiResponse = detectAIResponse(parsedResponse);
-  const hasToolCall = toolExecution != null;
+  const aiResponse = enableAIDetection !== false ? detectAIResponse(parsedResponse) : null;
+  const hasToolCall = enableToolCallDetection !== false && toolExecution != null;
   const isAI = aiResponse != null;
 
   // Build tabs conditionally

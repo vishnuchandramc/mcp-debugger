@@ -6,13 +6,14 @@ import ResponsePanel from './ResponsePanel.jsx';
 import BottomConsole from './BottomConsole.jsx';
 import { createMcpClient, callMcpTool, disconnectMcpClient, generateToolTemplate } from './mcpClient.js';
 import { cn } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Editor from '@monaco-editor/react';
 
 const DEFAULT_ENDPOINT = '';
 const DEFAULT_BODY = '';
 const DEFAULT_HEADERS = [{ key: '', value: '', enabled: true }];
 const DEFAULT_CONTEXT = JSON.stringify({ system: '', messages: [] }, null, 2);
-const DEFAULT_AUTH = { type: 'none', token: '', apiKey: { key: '', value: '', addTo: 'header' } };
+const DEFAULT_AUTH = { type: 'none', token: '', apiKey: { key: '', value: '', addTo: 'header' }, savedKeyName: '' };
 const TABS_KEY = 'mcp_debugger_tabs';
 const MAX_HISTORY = 50;
 
@@ -253,11 +254,55 @@ export default function App() {
   const mode = activeTab?.mode || 'http';
 
   const [showSettings, setShowSettings] = useState(false);
+  const [settingsSection, setSettingsSection] = useState('general');
+  const [draftSettings, setDraftSettings] = useState(null);
+
+  function openSettings() {
+    setDraftSettings(JSON.parse(JSON.stringify(settings)));
+    setShowSettings(true);
+  }
+  function cancelSettings() {
+    setDraftSettings(null);
+    setShowSettings(false);
+  }
+  function saveSettings() {
+    setSettings(draftSettings);
+    setDraftSettings(null);
+    setShowSettings(false);
+  }
+
+  const DEFAULT_SETTINGS = {
+    // General
+    defaultMode: 'http',
+    defaultMethod: 'POST',
+    theme: 'dark',
+    saveHistory: true,
+    // API
+    defaultHeaders: [],
+    apiKeys: [],
+    // AI Behavior
+    enableAIDetection: true,
+    enableToolCallDetection: true,
+    autoRunMCPTool: false,
+  };
+
   const [settings, setSettings] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem('mcp_debugger_settings')) || { defaultMethod: 'POST' };
+      const stored = JSON.parse(localStorage.getItem('mcp_debugger_settings'));
+      if (stored) {
+        // Migrate old apiKeys object format to array
+        if (stored.apiKeys && !Array.isArray(stored.apiKeys)) {
+          const migrated = [];
+          for (const [name, key] of Object.entries(stored.apiKeys)) {
+            if (key) migrated.push({ name, key });
+          }
+          stored.apiKeys = migrated;
+        }
+        return { ...DEFAULT_SETTINGS, ...stored };
+      }
+      return { ...DEFAULT_SETTINGS };
     } catch {
-      return { defaultMethod: 'POST' };
+      return { ...DEFAULT_SETTINGS };
     }
   });
 
@@ -277,7 +322,7 @@ export default function App() {
 
   useEffect(() => {
     if (window.electronAPI) {
-      window.electronAPI.onOpenSettings(() => setShowSettings(true));
+      window.electronAPI.onOpenSettings(() => openSettings());
       window.electronAPI.onNewTab(() => {
         if (handleNewTabRef.current) handleNewTabRef.current();
       });
@@ -348,11 +393,14 @@ export default function App() {
   // --- Tab management ---
   function handleNewTab() {
     const id = nextId.current++;
+    const startHeaders = settings.defaultHeaders?.length > 0
+      ? [...settings.defaultHeaders.map(h => ({ ...h })), { key: '', value: '', enabled: true }]
+      : DEFAULT_HEADERS;
     const tab = {
       id, name: 'New Request',
-      mode: 'http',
+      mode: settings.defaultMode || 'http',
       method: settings.defaultMethod || 'POST', endpoint: DEFAULT_ENDPOINT,
-      body: DEFAULT_BODY, headers: DEFAULT_HEADERS, context: DEFAULT_CONTEXT, auth: DEFAULT_AUTH,
+      body: DEFAULT_BODY, headers: startHeaders, context: DEFAULT_CONTEXT, auth: DEFAULT_AUTH,
       response: null, rawResponse: null, isError: false,
       toolExecution: null, loading: false, history: [],
     };
@@ -488,6 +536,25 @@ export default function App() {
 
     try {
       const headersObj = buildHeadersObject(h, hasBody);
+      // Inject saved API key if auth type is "saved"
+      if (tab.auth?.type === 'saved' && tab.auth.savedKeyName && Array.isArray(settings.apiKeys)) {
+        const saved = settings.apiKeys.find(k => k.name === tab.auth.savedKeyName);
+        if (saved?.key) {
+          headersObj['Authorization'] = 'Bearer ' + saved.key;
+          appendLog(`🔑 Using saved key: ${saved.name}`, 'info');
+        }
+      }
+      // Auto-inject API key as Bearer token if no Authorization header is set
+      if (!headersObj['Authorization'] && Array.isArray(settings.apiKeys)) {
+        try {
+          const host = new URL(ep).hostname;
+          const match = settings.apiKeys.find(k => k.name && k.key && host.includes(k.name.toLowerCase()));
+          if (match) {
+            headersObj['Authorization'] = 'Bearer ' + match.key;
+            appendLog(`🔑 Auto-injected key: ${match.name}`, 'info');
+          }
+        } catch { /* invalid URL, skip */ }
+      }
       const { headers: finalHeaders, endpoint: finalEndpoint } = applyAuth(tab.auth, headersObj, ep);
       const startTime = Date.now();
       const res = await fetch(finalEndpoint, {
@@ -797,6 +864,7 @@ export default function App() {
               auth={activeTab.auth} setAuth={setAuth}
               selectedTool={selectedTool}
               mode={mode}
+              savedApiKeys={settings.apiKeys}
             />
           </div>
 
@@ -813,6 +881,8 @@ export default function App() {
               requestBody={activeTab.body}
               mode={activeTab.mode}
               responseMeta={activeTab.responseMeta}
+              enableAIDetection={settings.enableAIDetection}
+              enableToolCallDetection={settings.enableToolCallDetection}
             />
           </div>
         </div>
@@ -838,71 +908,273 @@ export default function App() {
       )}
 
       {showSettings && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={() => setShowSettings(false)}>
-          <div className="bg-zinc-900 border border-zinc-800 rounded-none p-5 w-[400px] max-w-[90vw] flex flex-col gap-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-between items-center pb-2 border-b border-zinc-800">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={(e) => { if (e.target === e.currentTarget) cancelSettings(); }}>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-none w-[520px] max-w-[90vw] flex flex-col shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex justify-between items-center px-5 pt-4 pb-3 border-b border-zinc-800">
               <span className="text-[14px] font-bold text-zinc-100 uppercase tracking-wider">Preferences</span>
-              <button 
-                onClick={() => setShowSettings(false)} 
-                className="text-zinc-500 text-lg hover:text-zinc-300 leading-none p-0 outline-none bg-transparent border-none cursor-pointer"
-              >
-                &times;
-              </button>
+              <button onClick={cancelSettings} className="text-zinc-500 text-lg hover:text-zinc-300 leading-none p-0 outline-none bg-transparent border-none cursor-pointer">&times;</button>
             </div>
-            
-            <div className="flex flex-col gap-3">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wide">Default HTTP Method</label>
-                <Select 
-                  value={settings?.defaultMethod || 'POST'} 
-                  onValueChange={(val) => setSettings({ ...settings, defaultMethod: val })}
-                >
-                  <SelectTrigger className="w-full h-8 text-[12px] font-bold bg-zinc-950 border-zinc-800 text-zinc-200">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].map((m) => (
-                      <SelectItem key={m} value={m} className="text-[12px] font-bold">{m}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+
+            {/* Body: sidebar + content */}
+            <div className="flex min-h-[340px]">
+              {/* Sidebar nav */}
+              <div className="w-[130px] shrink-0 border-r border-zinc-800 py-2 flex flex-col gap-0.5">
+                {[
+                  { key: 'general', label: 'General' },
+                  { key: 'api', label: 'API / Headers' },
+                  { key: 'ai', label: 'AI Behavior' },
+                ].map(({ key, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => setSettingsSection(key)}
+                    className={cn(
+                      "text-left px-3 py-1.5 text-[11px] font-semibold bg-transparent border-none cursor-pointer transition-colors",
+                      settingsSection === key ? "text-zinc-100 bg-zinc-800" : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50"
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
 
-              <div className="flex flex-col gap-1.5 mt-2">
-                <label className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wide">Save Request History</label>
-                <div className="flex items-center gap-2 mt-1">
-                  <input 
-                    type="checkbox" 
-                    id="saveHistory" 
-                    checked={settings?.saveHistory !== false}
-                    onChange={(e) => setSettings({ ...settings, saveHistory: e.target.checked })}
-                    className="accent-zinc-500 w-3.5 h-3.5 cursor-pointer"
-                  />
-                  <label htmlFor="saveHistory" className="text-[12px] text-zinc-300 cursor-pointer">
-                    Enable automatic history tracking
-                  </label>
-                </div>
-              </div>
+              {/* Section content */}
+              <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-4">
+                {settingsSection === 'general' && draftSettings && (
+                  <>
+                    {/* Default Mode */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wide">Default Mode</label>
+                      <Select value={draftSettings.defaultMode || 'http'} onValueChange={(val) => setDraftSettings({ ...draftSettings, defaultMode: val })}>
+                        <SelectTrigger className="w-full h-8 text-[12px] font-bold bg-zinc-950 border-zinc-800 text-zinc-200">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="http" className="text-[12px] font-bold">HTTP</SelectItem>
+                          <SelectItem value="mcp" className="text-[12px] font-bold">MCP</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-              <div className="flex flex-col gap-1.5 mt-3 pt-4 border-t border-zinc-800">
-                <div 
-                  onClick={() => {
-                    if (confirm('Clear all workspace data and history? \n\nThis cannot be undone and will overwrite all stored tabs in localStorage.')) {
-                      localStorage.removeItem('mcp_debugger_tabs');
-                      localStorage.removeItem('mcp_debugger_history');
-                      window.location.reload();
-                    }
-                  }}
-                  className="w-full h-8 text-[11px] font-bold border border-red-900/50 text-red-500 hover:bg-red-950/50 hover:text-red-400 bg-transparent flex items-center justify-center cursor-pointer transition-colors"
-                >
-                  Clear Entire Workspace Data
-                </div>
+                    {/* Default HTTP Method */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wide">Default HTTP Method</label>
+                      <Select value={draftSettings.defaultMethod || 'POST'} onValueChange={(val) => setDraftSettings({ ...draftSettings, defaultMethod: val })}>
+                        <SelectTrigger className="w-full h-8 text-[12px] font-bold bg-zinc-950 border-zinc-800 text-zinc-200">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].map((m) => (
+                            <SelectItem key={m} value={m} className="text-[12px] font-bold">{m}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Theme (placeholder) */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wide">Theme</label>
+                      <div className="w-full h-8 text-[12px] font-bold bg-zinc-950 border border-zinc-800 text-zinc-500 flex items-center px-2.5 cursor-not-allowed opacity-60">
+                        Dark
+                      </div>
+                    </div>
+
+                    {/* Save History */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <span className="text-[12px] text-zinc-200">Save Request History</span>
+                        <span className="text-[10px] text-zinc-500">Automatically track request history per tab</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={draftSettings.saveHistory !== false}
+                        onChange={(e) => setDraftSettings({ ...draftSettings, saveHistory: e.target.checked })}
+                        className="accent-zinc-500 w-3.5 h-3.5 cursor-pointer"
+                      />
+                    </div>
+
+                    {/* Clear Workspace */}
+                    <div className="pt-3 mt-auto border-t border-zinc-800">
+                      <div
+                        onClick={() => {
+                          if (confirm('Clear all workspace data and history?\n\nThis cannot be undone and will overwrite all stored tabs in localStorage.')) {
+                            localStorage.removeItem('mcp_debugger_tabs');
+                            localStorage.removeItem('mcp_debugger_history');
+                            window.location.reload();
+                          }
+                        }}
+                        className="w-full h-8 text-[11px] font-bold border border-red-900/50 text-red-500 hover:bg-red-950/50 hover:text-red-400 bg-transparent flex items-center justify-center cursor-pointer transition-colors"
+                      >
+                        Clear Entire Workspace Data
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {settingsSection === 'api' && draftSettings && (
+                  <>
+                    {/* Default Headers */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wide">Default Headers</label>
+                      <span className="text-[10px] text-zinc-500 mb-1">Pre-filled on new tabs</span>
+                      {(draftSettings.defaultHeaders || []).map((header, i) => (
+                        <div key={i} className="flex items-center gap-1.5">
+                          <input
+                            type="text"
+                            placeholder="Key"
+                            value={header.key}
+                            onChange={(e) => {
+                              const next = [...draftSettings.defaultHeaders];
+                              next[i] = { ...next[i], key: e.target.value };
+                              setDraftSettings({ ...draftSettings, defaultHeaders: next });
+                            }}
+                            className="flex-1 h-7 px-2 text-[11px] bg-zinc-950 border border-zinc-800 text-zinc-200 outline-none font-mono"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Value"
+                            value={header.value}
+                            onChange={(e) => {
+                              const next = [...draftSettings.defaultHeaders];
+                              next[i] = { ...next[i], value: e.target.value };
+                              setDraftSettings({ ...draftSettings, defaultHeaders: next });
+                            }}
+                            className="flex-1 h-7 px-2 text-[11px] bg-zinc-950 border border-zinc-800 text-zinc-200 outline-none font-mono"
+                          />
+                          <button
+                            onClick={() => {
+                              const next = draftSettings.defaultHeaders.filter((_, j) => j !== i);
+                              setDraftSettings({ ...draftSettings, defaultHeaders: next });
+                            }}
+                            className="w-7 h-7 flex items-center justify-center text-zinc-500 hover:text-red-400 bg-transparent border border-zinc-800 cursor-pointer text-[13px]"
+                          >
+                            −
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => setDraftSettings({ ...draftSettings, defaultHeaders: [...(draftSettings.defaultHeaders || []), { key: '', value: '', enabled: true }] })}
+                        className="self-start h-7 px-3 text-[11px] font-semibold text-zinc-400 hover:text-zinc-200 bg-transparent border border-zinc-800 hover:border-zinc-700 cursor-pointer transition-colors"
+                      >
+                        + Add Header
+                      </button>
+                    </div>
+
+                    {/* API Keys */}
+                    <div className="flex flex-col gap-1.5 pt-3 border-t border-zinc-800">
+                      <label className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wide">API Keys</label>
+                      <span className="text-[10px] text-zinc-500 mb-1">Auto-injected as Bearer token when domain matches the key name</span>
+                      {(draftSettings.apiKeys || []).map((entry, i) => (
+                        <div key={i} className="flex items-center gap-1.5">
+                          <input
+                            type="text"
+                            placeholder="Name (e.g. openrouter)"
+                            value={entry.name}
+                            onChange={(e) => {
+                              const next = [...draftSettings.apiKeys];
+                              next[i] = { ...next[i], name: e.target.value };
+                              setDraftSettings({ ...draftSettings, apiKeys: next });
+                            }}
+                            className="w-[140px] h-7 px-2 text-[11px] bg-zinc-950 border border-zinc-800 text-zinc-200 outline-none font-mono"
+                          />
+                          <input
+                            type="password"
+                            placeholder="API Key"
+                            value={entry.key}
+                            onChange={(e) => {
+                              const next = [...draftSettings.apiKeys];
+                              next[i] = { ...next[i], key: e.target.value };
+                              setDraftSettings({ ...draftSettings, apiKeys: next });
+                            }}
+                            className="flex-1 h-7 px-2 text-[11px] bg-zinc-950 border border-zinc-800 text-zinc-200 outline-none font-mono"
+                          />
+                          <button
+                            onClick={() => {
+                              const next = draftSettings.apiKeys.filter((_, j) => j !== i);
+                              setDraftSettings({ ...draftSettings, apiKeys: next });
+                            }}
+                            className="w-7 h-7 flex items-center justify-center text-zinc-500 hover:text-red-400 bg-transparent border border-zinc-800 cursor-pointer text-[13px]"
+                          >
+                            −
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => setDraftSettings({ ...draftSettings, apiKeys: [...(draftSettings.apiKeys || []), { name: '', key: '' }] })}
+                        className="self-start h-7 px-3 text-[11px] font-semibold text-zinc-400 hover:text-zinc-200 bg-transparent border border-zinc-800 hover:border-zinc-700 cursor-pointer transition-colors"
+                      >
+                        + Add API Key
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {settingsSection === 'ai' && draftSettings && (
+                  <>
+                    {/* Enable AI Detection */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <span className="text-[12px] text-zinc-200">Enable AI Response Detection</span>
+                        <span className="text-[10px] text-zinc-500">Show Assistant tab for AI API responses</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={draftSettings.enableAIDetection !== false}
+                        onChange={(e) => setDraftSettings({ ...draftSettings, enableAIDetection: e.target.checked })}
+                        className="accent-zinc-500 w-3.5 h-3.5 cursor-pointer"
+                      />
+                    </div>
+
+                    {/* Enable Tool Call Detection */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <span className="text-[12px] text-zinc-200">Enable Tool Call Detection</span>
+                        <span className="text-[10px] text-zinc-500">Show Timeline tab when tool calls are detected</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={draftSettings.enableToolCallDetection !== false}
+                        onChange={(e) => setDraftSettings({ ...draftSettings, enableToolCallDetection: e.target.checked })}
+                        className="accent-zinc-500 w-3.5 h-3.5 cursor-pointer"
+                      />
+                    </div>
+
+                    {/* Auto-run MCP Tool */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <span className="text-[12px] text-zinc-200">Auto-run MCP Tool</span>
+                        <span className="text-[10px] text-zinc-500">Automatically execute detected tool calls (when MCP connected)</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={draftSettings.autoRunMCPTool === true}
+                        onChange={(e) => setDraftSettings({ ...draftSettings, autoRunMCPTool: e.target.checked })}
+                        className="accent-zinc-500 w-3.5 h-3.5 cursor-pointer"
+                      />
+                    </div>
+                    {/* TODO: Wire autoRunMCPTool — when true and MCP is connected, auto-execute detected tool calls after response */}
+                  </>
+                )}
               </div>
             </div>
-            
-            <div className="mt-2 pt-3 border-t border-zinc-800 flex items-center justify-between">
-              <span className="text-[10px] text-zinc-500 font-mono">MCP Debugger Frontend</span>
-              <span className="text-[10px] text-zinc-500 font-mono font-bold">v0.1.0</span>
+
+            {/* Footer */}
+            <div className="px-5 py-3 border-t border-zinc-800 flex items-center justify-between">
+              <span className="text-[10px] text-zinc-500 font-mono">MCP debugger</span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={cancelSettings}
+                  className="h-7 px-3 text-[11px] font-semibold text-zinc-400 hover:text-zinc-200 bg-transparent border border-zinc-800 hover:border-zinc-700 cursor-pointer transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveSettings}
+                  className="h-7 px-4 text-[11px] font-semibold text-zinc-100 bg-zinc-700 hover:bg-zinc-600 border border-zinc-600 cursor-pointer transition-colors"
+                >
+                  Save
+                </button>
+              </div>
             </div>
           </div>
         </div>
