@@ -13,9 +13,8 @@ const DEFAULT_BODY = '';
 const DEFAULT_HEADERS = [{ key: '', value: '', enabled: true }];
 const DEFAULT_CONTEXT = JSON.stringify({ system: '', messages: [] }, null, 2);
 const DEFAULT_AUTH = { type: 'none', token: '', apiKey: { key: '', value: '', addTo: 'header' } };
-const HISTORY_KEY = 'mcp_debugger_history';
 const TABS_KEY = 'mcp_debugger_tabs';
-const MAX_HISTORY = 5;
+const MAX_HISTORY = 50;
 
 function generateCurl({ method, url, headers, body }) {
   const parts = ['curl'];
@@ -209,19 +208,8 @@ function detectApiError(parsed, status) {
   return null;
 }
 
-function loadHistory() {
-  try {
-    return JSON.parse(localStorage.getItem(HISTORY_KEY)) ?? [];
-  } catch {
-    return [];
-  }
-}
 
-function saveHistory(history) {
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
-}
-
-const SAVEABLE_TAB_FIELDS = ['id', 'name', 'method', 'endpoint', 'body', 'headers', 'context', 'auth', 'mode'];
+const SAVEABLE_TAB_FIELDS = ['id', 'name', 'method', 'endpoint', 'body', 'headers', 'context', 'auth', 'mode', 'history'];
 
 function loadTabs() {
   try {
@@ -230,6 +218,7 @@ function loadTabs() {
       const tabs = saved.tabs.map(t => ({
         ...Object.fromEntries(SAVEABLE_TAB_FIELDS.map(f => [f, t[f]])),
         auth: { ...DEFAULT_AUTH, ...t.auth, apiKey: { ...DEFAULT_AUTH.apiKey, ...(t.auth?.apiKey) } },
+        history: t.history ?? [],
         response: null, rawResponse: null, isError: false,
         toolExecution: null, loading: false,
       }));
@@ -365,7 +354,7 @@ export default function App() {
       method: settings.defaultMethod || 'POST', endpoint: DEFAULT_ENDPOINT,
       body: DEFAULT_BODY, headers: DEFAULT_HEADERS, context: DEFAULT_CONTEXT, auth: DEFAULT_AUTH,
       response: null, rawResponse: null, isError: false,
-      toolExecution: null, loading: false,
+      toolExecution: null, loading: false, history: [],
     };
     setTabs(prev => [...prev, tab]);
     setActiveTabId(id);
@@ -388,7 +377,7 @@ export default function App() {
     setActiveTabId(id);
   }
 
-  const [history, setHistory] = useState(loadHistory);
+  const activeHistory = tabs.find(t => t.id === activeTabId)?.history ?? [];
 
   // --- MCP state ---
   const [mcpUrl, setMcpUrl] = useState('http://localhost:3000/sse');
@@ -455,9 +444,20 @@ export default function App() {
 
   // --- HTTP handlers ---
   function pushHistory(entry) {
-    const next = [entry, ...history].slice(0, MAX_HISTORY);
-    setHistory(next);
-    saveHistory(next);
+    const tab = tabs.find(t => t.id === activeTabId);
+    if (!tab) return;
+    const hist = tab.history ?? [];
+    const key = `${entry.method}::${entry.endpoint}`;
+    const existing = hist.findIndex(h => `${h.method}::${h.endpoint}` === key);
+    let next;
+    if (existing !== -1) {
+      const item = { ...hist[existing], ...entry, hits: (hist[existing].hits ?? 1) + 1, timestamp: Date.now() };
+      next = [item, ...hist.filter((_, i) => i !== existing)];
+    } else {
+      next = [{ ...entry, hits: 1 }, ...hist];
+    }
+    next = next.slice(0, MAX_HISTORY);
+    updateTab(activeTabId, { history: next });
   }
 
   function loadHistoryItem(item) {
@@ -714,12 +714,11 @@ export default function App() {
             <>
               <div className="flex items-center justify-between mb-1.5 px-1">
                 <p className="text-[10px] font-bold tracking-wider text-zinc-600 m-0 uppercase flex-1 shrink-0">HISTORY</p>
-                {history.length > 0 && (
-                  <button 
+                {activeHistory.length > 0 && (
+                  <button
                     onClick={() => {
-                      if (confirm('Clear all request history?')) {
-                        setHistory([]);
-                        saveHistory([]);
+                      if (confirm('Clear history for this tab?')) {
+                        updateTab(activeTabId, { history: [] });
                       }
                     }}
                     className="text-[9px] font-bold uppercase tracking-wider text-zinc-600 hover:text-red-400 bg-transparent border-none cursor-pointer p-0"
@@ -729,19 +728,26 @@ export default function App() {
                   </button>
                 )}
               </div>
-              {history.length === 0 ? (
+              {activeHistory.length === 0 ? (
                 <p className="text-[11px] text-zinc-600 m-0 ml-1">No requests yet.</p>
               ) : (
-                history.map((item, i) => (
+                activeHistory.map((item, i) => (
                   <button
                     key={i}
                     onClick={() => loadHistoryItem(item)}
                     className="flex flex-col gap-0.5 w-full bg-transparent hover:bg-zinc-900 border-none rounded-none p-1.5 mb-0.5 cursor-pointer text-left outline-none transition-colors"
                     title={item.endpoint}
                   >
-                    <span className="text-[10px] font-bold" style={{ color: METHOD_COLORS[item.method] }}>
-                      {item.method}
-                    </span>
+                    <div className="flex items-center justify-between w-full">
+                      <span className="text-[10px] font-bold" style={{ color: METHOD_COLORS[item.method] }}>
+                        {item.method}
+                      </span>
+                      {(item.hits ?? 1) > 1 && (
+                        <span className="text-[9px] font-bold text-zinc-500 bg-zinc-800 px-1 py-px rounded-sm">
+                          ×{item.hits}
+                        </span>
+                      )}
+                    </div>
                     <span className="text-[11px] text-zinc-500 overflow-hidden text-ellipsis whitespace-nowrap">{shortUrl(item.endpoint)}</span>
                   </button>
                 ))
