@@ -301,12 +301,35 @@ export default function App() {
   }, [tabs, activeTabId]);
 
   function handleRenameTab(id, newName) {
-    updateTab(id, { name: newName });
+    updateTab(id, { name: newName, _userRenamed: true });
+  }
+
+  function getTabLabel(url) {
+    if (!url || !url.trim()) return '';
+    try {
+      const u = new URL(url);
+      const path = u.pathname === '/' ? '' : u.pathname;
+      return u.host + path;
+    } catch {
+      // Not a valid URL yet — strip query params manually
+      const clean = url.split('?')[0];
+      return clean.length > 40 ? clean.slice(0, 40) + '…' : clean;
+    }
   }
 
   // Individual setters that delegate to updateActiveTab (preserves child component interfaces)
   const setMethod = (v) => updateActiveTab({ method: v });
-  const setEndpoint = (v) => updateActiveTab({ endpoint: v });
+  const setEndpoint = (v) => {
+    const tab = tabs.find(t => t.id === activeTabId);
+    const updates = { endpoint: v };
+    // Auto-rename only if user hasn't manually renamed
+    if (tab && !tab._userRenamed) {
+      const label = getTabLabel(v);
+      if (label) updates.name = label;
+      else updates.name = 'New Request';
+    }
+    updateActiveTab(updates);
+  };
   const setBody = (v) => updateActiveTab({ body: v });
   const setHeaders = (v) => updateActiveTab({ headers: v });
   const setContext = (v) => updateActiveTab({ context: v });
@@ -315,9 +338,8 @@ export default function App() {
   // --- Tab management ---
   function handleNewTab() {
     const id = nextId.current++;
-    const num = nextTabNumber.current++;
     const tab = {
-      id, name: `Untitled ${num}`,
+      id, name: 'New Request',
       mode: 'http',
       method: settings.defaultMethod || 'POST', endpoint: DEFAULT_ENDPOINT,
       body: DEFAULT_BODY, headers: DEFAULT_HEADERS, context: DEFAULT_CONTEXT, auth: DEFAULT_AUTH,
@@ -577,6 +599,12 @@ export default function App() {
       } catch {
         fields.body = result.body;
       }
+    }
+    // Auto-rename tab from imported URL
+    const tab = tabs.find(t => t.id === activeTabId);
+    if (tab && !tab._userRenamed && result.url) {
+      const label = getTabLabel(result.url);
+      if (label) fields.name = label;
     }
     updateActiveTab(fields);
   }

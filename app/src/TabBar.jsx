@@ -43,7 +43,7 @@ export default function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, onN
       className="flex items-end bg-zinc-950 border-b border-zinc-800 shrink-0 min-h-[38px] pl-[80px] pt-1.5 select-none"
       style={{ WebkitAppRegion: 'drag' }}
     >
-      <div className="flex overflow-x-auto flex-1 h-[30px] pr-2">
+      <div className="flex overflow-hidden flex-1 h-[30px] pr-2">
         {tabs.map((tab) => {
           const isActive = tab.id === activeTabId;
           const isEditing = editingTabId === tab.id;
@@ -55,7 +55,7 @@ export default function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, onN
               style={{ WebkitAppRegion: 'no-drag' }}
               onClick={() => onSelectTab(tab.id)}
               className={cn(
-                "relative flex items-center justify-center gap-1.5 px-3 bg-transparent border-y border-x border-zinc-800 text-zinc-500 text-[11px] font-semibold cursor-pointer whitespace-nowrap shrink-0 hover:bg-zinc-800/50 outline-none transition-colors border-t-transparent border-b-transparent rounded-t-lg -ml-px h-full",
+                "group relative flex items-center justify-start gap-1.5 px-2 bg-transparent border-y border-x border-zinc-800 text-zinc-500 text-[11px] font-semibold cursor-pointer hover:bg-zinc-800/50 outline-none transition-colors border-t-transparent border-b-transparent rounded-t-lg -ml-px h-full flex-1 min-w-[40px] max-w-[240px] overflow-hidden whitespace-nowrap",
                 isActive ? "bg-zinc-900 text-zinc-100 hover:bg-zinc-900" : "",
                 isActive && !isMcp && "border-t-blue-500"
               )}
@@ -87,11 +87,11 @@ export default function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, onN
                   }}
                   onBlur={() => commitEdit(tab)}
                   onClick={(e) => e.stopPropagation()}
-                  className="text-[11px] bg-transparent border-none outline-none text-zinc-200 p-0 m-0 w-[80px]"
+                  className="text-[11px] bg-transparent border-none outline-none text-zinc-200 p-0 m-0 w-full flex-1 min-w-0"
                 />
               ) : (
                 <span
-                  className="text-[11px]"
+                  className="text-[11px] truncate flex-1 min-w-0 text-left"
                   onDoubleClick={(e) => {
                     e.stopPropagation();
                     startEditing(tab);
