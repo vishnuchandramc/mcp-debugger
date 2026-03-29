@@ -107,7 +107,7 @@ export default function RequestPanel({ body, setBody, headers, setHeaders, conte
   }
 
   function handleAddHeader() {
-    setHeaders([...headers, { key: '', value: '' }]);
+    setHeaders([...headers, { key: '', value: '', enabled: true }]);
   }
 
   function handleRemoveHeader(index) {
@@ -260,14 +260,21 @@ export default function RequestPanel({ body, setBody, headers, setHeaders, conte
           <div className="flex-1 flex flex-col gap-1 overflow-y-auto">
             {headers.map((header, i) => (
               <div key={i} className="flex gap-1.5 items-center">
+                <input
+                  type="checkbox"
+                  checked={header.enabled !== false}
+                  onChange={(e) => handleHeaderChange(i, 'enabled', e.target.checked)}
+                  className="accent-zinc-500 w-3.5 h-3.5 cursor-pointer shrink-0 ml-1"
+                  title="Include in request"
+                />
                 <Input
-                  className="flex-1 h-6 bg-transparent border-zinc-800 text-zinc-200 text-xs px-2 focus-visible:ring-1 focus-visible:ring-zinc-700"
+                  className={`flex-1 h-6 bg-transparent border-zinc-800 text-xs px-2 focus-visible:ring-1 focus-visible:ring-zinc-700 ${header.enabled === false ? 'text-zinc-500 opacity-60' : 'text-zinc-200'}`}
                   placeholder="Header name"
                   value={header.key}
                   onChange={(e) => handleHeaderChange(i, 'key', e.target.value)}
                 />
                 <Input
-                  className="flex-[2] h-6 bg-transparent border-zinc-800 text-zinc-200 text-xs px-2 focus-visible:ring-1 focus-visible:ring-zinc-700"
+                  className={`flex-[2] h-6 bg-transparent border-zinc-800 text-xs px-2 focus-visible:ring-1 focus-visible:ring-zinc-700 ${header.enabled === false ? 'text-zinc-500 opacity-60' : 'text-zinc-200'}`}
                   placeholder="Value"
                   value={header.value}
                   onChange={(e) => handleHeaderChange(i, 'value', e.target.value)}

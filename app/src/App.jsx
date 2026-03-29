@@ -9,7 +9,7 @@ import Editor from '@monaco-editor/react';
 
 const DEFAULT_ENDPOINT = '';
 const DEFAULT_BODY = '';
-const DEFAULT_HEADERS = [{ key: '', value: '' }];
+const DEFAULT_HEADERS = [{ key: '', value: '', enabled: true }];
 const DEFAULT_CONTEXT = JSON.stringify({ system: '', messages: [] }, null, 2);
 const DEFAULT_AUTH = { type: 'none', token: '', apiKey: { key: '', value: '', addTo: 'header' } };
 const HISTORY_KEY = 'mcp_debugger_history';
@@ -127,7 +127,9 @@ function buildHeadersObject(headerRows, includeContentType) {
   if (includeContentType) {
     result['Content-Type'] = 'application/json';
   }
-  for (const { key, value } of headerRows) {
+  for (const { key, value, enabled } of headerRows) {
+    if (enabled === false) continue;
+    
     const trimmed = key.trim();
     if (trimmed) {
       result[trimmed] = value;
