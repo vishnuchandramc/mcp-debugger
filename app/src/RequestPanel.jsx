@@ -1,7 +1,22 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
+import SchemaForm from './SchemaForm';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
-const TABS = ['Body', 'Headers', 'Context'];
+function isFormCompatibleSchema(schema) {
+  if (!schema || schema.type !== 'object' || !schema.properties) return false;
+  const props = Object.entries(schema.properties);
+  if (props.length === 0) return false;
+  return props.every(([, prop]) =>
+    ['string', 'number', 'integer', 'boolean'].includes(prop.type)
+  );
+}
+
+const HTTP_TABS = ['Headers', 'Body', 'Auth'];
+const MCP_TABS = ['Body', 'Context'];
 
 const TEMPLATES = {
   'Basic Request': JSON.stringify(
@@ -31,10 +46,28 @@ const TEMPLATES = {
   ),
 };
 
-export default function RequestPanel({ body, setBody }) {
-  const [activeTab, setActiveTab] = useState('Body');
+export default function RequestPanel({ body, setBody, headers, setHeaders, context, setContext, auth, setAuth, selectedTool, mode, savedApiKeys }) {
+  const [activeTab, setActiveTab] = useState('Headers');
   const [jsonError, setJsonError] = useState(null);
+  const [contextError, setContextError] = useState(null);
+  const [bodyCopied, setBodyCopied] = useState(false);
+  const [viewMode, setViewMode] = useState('json');
   const editorRef = useRef(null);
+  const contextEditorRef = useRef(null);
+
+  const canShowForm = mode === 'mcp' && selectedTool && isFormCompatibleSchema(selectedTool.inputSchema);
+
+  useEffect(() => {
+    setViewMode(canShowForm ? 'form' : 'json');
+  }, [selectedTool, canShowForm]);
+
+  useEffect(() => {
+    if (mode === 'mcp') {
+      setActiveTab('Body');
+    } else {
+      setActiveTab('Headers');
+    }
+  }, [mode]);
 
   const handleEditorMount = useCallback((editor) => {
     editorRef.current = editor;
@@ -50,14 +83,13 @@ export default function RequestPanel({ body, setBody }) {
     }
   }, [setBody]);
 
-  function handleTemplate(e) {
-    const tpl = TEMPLATES[e.target.value];
+  function handleTemplate(val) {
+    const tpl = TEMPLATES[val];
     if (tpl) {
       setBody(tpl);
       setJsonError(null);
       editorRef.current?.setValue(tpl);
     }
-    e.target.value = '';
   }
 
   function handleFormat() {
@@ -71,48 +103,326 @@ export default function RequestPanel({ body, setBody }) {
     }
   }
 
+  function handleHeaderChange(index, field, value) {
+    const next = headers.map((h, i) => i === index ? { ...h, [field]: value } : h);
+    setHeaders(next);
+  }
+
+  function handleAddHeader() {
+    setHeaders([...headers, { key: '', value: '', enabled: true }]);
+  }
+
+  function handleRemoveHeader(index) {
+    if (headers.length <= 1) {
+      setHeaders([{ key: '', value: '' }]);
+      return;
+    }
+    setHeaders(headers.filter((_, i) => i !== index));
+  }
+
+  const handleContextMount = useCallback((editor) => {
+    contextEditorRef.current = editor;
+  }, []);
+
+  const handleContextChange = useCallback((value) => {
+    setContext(value ?? '');
+    try {
+      JSON.parse(value);
+      setContextError(null);
+    } catch (e) {
+      setContextError(e.message);
+    }
+  }, [setContext]);
+
   return (
-    <div style={styles.panel}>
-      <div style={styles.tabBar}>
-        {TABS.map((tab) => (
+    <div className="flex flex-col h-full bg-zinc-900 overflow-hidden">
+      <div className="flex items-center border-b border-zinc-800 shrink-0 min-h-[28px]">
+        {(mode === 'mcp' ? MCP_TABS : HTTP_TABS).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            style={{ ...styles.tab, ...(activeTab === tab ? styles.tabActive : {}) }}
+            className={cn(
+              "bg-transparent border-none border-r border-zinc-800 text-zinc-500 py-[5px] px-3 w-auto h-full text-[11px] font-semibold cursor-pointer outline-none transition-colors",
+              activeTab === tab && "bg-zinc-800 text-zinc-100"
+            )}
           >
             {tab}
           </button>
         ))}
         {activeTab === 'Body' && (
-          <div style={styles.tabActions}>
-            <button onClick={handleFormat} style={styles.actionBtn}>Format</button>
-            <select onChange={handleTemplate} style={styles.templateSelect} defaultValue="">
-              <option value="" disabled>Templates</option>
-              {Object.keys(TEMPLATES).map((name) => (
-                <option key={name} value={name}>{name}</option>
-              ))}
-            </select>
+          <div className="ml-auto mr-2 flex items-center gap-1.5">
+            {canShowForm && (
+              <>
+                <button
+                  onClick={() => setViewMode('form')}
+                  className={cn(
+                    "bg-transparent text-zinc-400 border border-zinc-800 rounded-none px-2 py-0.5 text-[10px] cursor-pointer hover:bg-zinc-800",
+                    viewMode === 'form' && "bg-zinc-800 text-zinc-100 border-zinc-700"
+                  )}
+                >
+                  Form
+                </button>
+                <button
+                  onClick={() => setViewMode('json')}
+                  className={cn(
+                    "bg-transparent text-zinc-400 border border-zinc-800 rounded-none px-2 py-0.5 text-[10px] cursor-pointer hover:bg-zinc-800",
+                    viewMode === 'json' && "bg-zinc-800 text-zinc-100 border-zinc-700"
+                  )}
+                >
+                  JSON
+                </button>
+                <span className="w-px h-3 bg-zinc-800 mx-1" />
+              </>
+            )}
+            <button
+              onClick={() => {
+                if (!body) return;
+                navigator.clipboard.writeText(body);
+                setBodyCopied(true);
+                setTimeout(() => setBodyCopied(false), 2000);
+              }}
+              className="bg-transparent text-zinc-400 border border-zinc-800 rounded-none px-2 py-0.5 text-[10px] cursor-pointer hover:bg-zinc-800"
+            >
+              {bodyCopied ? 'Copied!' : 'Copy'}
+            </button>
+            <button onClick={handleFormat} className="bg-transparent text-zinc-400 border border-zinc-800 rounded-none px-2 py-0.5 text-[10px] cursor-pointer hover:bg-zinc-800">Format</button>
+            <Select onValueChange={handleTemplate}>
+              <SelectTrigger className="w-[100px] h-5 min-h-5 text-[10px] bg-transparent border-zinc-800 text-zinc-400 px-2 py-0">
+                <SelectValue placeholder="Templates" />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.keys(TEMPLATES).map((name) => (
+                  <SelectItem key={name} value={name} className="text-[10px]">{name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         )}
       </div>
 
       {activeTab === 'Body' && (
-        <div style={styles.editorWrapper}>
-          {jsonError && (
-            <div style={styles.errorBanner}>
-              <span style={styles.errorIcon}>⚠</span> {jsonError}
+        <div className="flex-1 flex flex-col overflow-hidden p-2 gap-1.5">
+          {selectedTool && (
+            <div className="bg-zinc-900 text-zinc-200 border border-zinc-800 border-l-[2px] border-l-blue-500 rounded p-1.5 text-[11px] shrink-0 font-mono">
+              <span className="font-bold text-zinc-200">{selectedTool.name}</span>
+              {selectedTool.description && (
+                <span className="text-zinc-500"> — {selectedTool.description}</span>
+              )}
             </div>
           )}
-          <div style={styles.editorContainer}>
+          {viewMode === 'form' && canShowForm ? (
+            <SchemaForm
+              schema={selectedTool.inputSchema}
+              values={(() => { try { return JSON.parse(body) || {}; } catch { return {}; } })()}
+              onChange={(newValues) => {
+                const json = JSON.stringify(newValues, null, 2);
+                setBody(json);
+                setJsonError(null);
+                editorRef.current?.setValue(json);
+              }}
+            />
+          ) : (
+            <>
+              {jsonError && (
+                <div className="bg-zinc-900 text-red-400 border border-red-900 rounded p-1.5 text-[11px] shrink-0 font-mono">
+                  <span className="mr-1">⚠</span> {jsonError}
+                </div>
+              )}
+              <div className="flex-1 border border-zinc-800 rounded overflow-hidden relative">
+                <Editor
+                  defaultValue={body}
+                  language="json"
+                  theme="vs-dark"
+                  onMount={handleEditorMount}
+                  onChange={handleEditorChange}
+                  options={{
+                    fontSize: 13,
+                    fontFamily: "Menlo, Monaco, 'Courier New', monospace",
+                    minimap: { enabled: false },
+                    scrollBeyondLastLine: false,
+                    lineNumbers: 'on',
+                    renderLineHighlight: 'line',
+                    tabSize: 2,
+                    wordWrap: 'on',
+                    automaticLayout: true,
+                    padding: { top: 10, bottom: 10 },
+                  }}
+                />
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'Headers' && (
+        <div className="flex-1 flex flex-col overflow-hidden p-2 gap-1.5">
+          <div className="flex justify-end shrink-0">
+            <button onClick={handleAddHeader} className="bg-transparent text-zinc-400 border border-zinc-800 rounded-none px-2 py-0.5 text-[10px] cursor-pointer hover:bg-zinc-800">+ Add Header</button>
+          </div>
+          <div className="flex-1 flex flex-col gap-1 overflow-y-auto">
+            {headers.map((header, i) => (
+              <div key={i} className="flex gap-1.5 items-center">
+                <input
+                  type="checkbox"
+                  checked={header.enabled !== false}
+                  onChange={(e) => handleHeaderChange(i, 'enabled', e.target.checked)}
+                  className="accent-zinc-500 w-3.5 h-3.5 cursor-pointer shrink-0 ml-1"
+                  title="Include in request"
+                />
+                <Input
+                  className={`flex-1 h-6 bg-transparent border-zinc-800 text-xs px-2 focus-visible:ring-1 focus-visible:ring-zinc-700 ${header.enabled === false ? 'text-zinc-500 opacity-60' : 'text-zinc-200'}`}
+                  placeholder="Header name"
+                  value={header.key}
+                  onChange={(e) => handleHeaderChange(i, 'key', e.target.value)}
+                />
+                <Input
+                  className={`flex-[2] h-6 bg-transparent border-zinc-800 text-xs px-2 focus-visible:ring-1 focus-visible:ring-zinc-700 ${header.enabled === false ? 'text-zinc-500 opacity-60' : 'text-zinc-200'}`}
+                  placeholder="Value"
+                  value={header.value}
+                  onChange={(e) => handleHeaderChange(i, 'value', e.target.value)}
+                />
+                <button
+                  onClick={() => handleRemoveHeader(i)}
+                  className="bg-transparent border-none text-zinc-500 text-base cursor-pointer px-1 rounded-none hover:text-red-400 hover:bg-zinc-800/50"
+                  title="Remove header"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'Auth' && (
+        <div className="flex-1 flex flex-col p-2 gap-2 overflow-y-auto">
+          <div className="flex gap-1.5 items-center">
+            <label className="text-[11px] font-semibold text-zinc-500 min-w-[60px] shrink-0">Type</label>
+            <Select
+              value={auth?.type ?? 'none'}
+              onValueChange={(val) => {
+                setAuth({
+                  type: val,
+                  token: auth?.token ?? '',
+                  apiKey: auth?.apiKey ?? { key: '', value: '', addTo: 'header' },
+                });
+              }}
+            >
+              <SelectTrigger className="w-[150px] h-6 text-xs bg-transparent border-zinc-800 text-zinc-200">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none" className="text-xs">None</SelectItem>
+                <SelectItem value="bearer" className="text-xs">Bearer Token</SelectItem>
+                <SelectItem value="apikey" className="text-xs">API Key</SelectItem>
+                {savedApiKeys?.length > 0 && (
+                  <SelectItem value="saved" className="text-xs">Saved Key</SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {auth?.type === 'bearer' && (
+            <div className="flex gap-1.5 items-center">
+              <label className="text-[11px] font-semibold text-zinc-500 min-w-[60px] shrink-0">Token</label>
+              <Input
+                className="flex-[2] h-6 bg-transparent border-zinc-800 text-zinc-200 text-xs px-2 focus-visible:ring-1 focus-visible:ring-zinc-700"
+                placeholder="Enter bearer token"
+                value={auth.token}
+                onChange={(e) => setAuth({ ...auth, token: e.target.value })}
+              />
+            </div>
+          )}
+
+          {auth?.type === 'apikey' && auth.apiKey && (
+            <>
+              <div className="flex gap-1.5 items-center">
+                <label className="text-[11px] font-semibold text-zinc-500 min-w-[60px] shrink-0">Key</label>
+                <Input
+                  className="flex-1 h-6 bg-transparent border-zinc-800 text-zinc-200 text-xs px-2 focus-visible:ring-1 focus-visible:ring-zinc-700"
+                  placeholder="e.g. X-API-Key"
+                  value={auth.apiKey.key ?? ''}
+                  onChange={(e) => setAuth({ ...auth, apiKey: { ...auth.apiKey, key: e.target.value } })}
+                />
+              </div>
+              <div className="flex gap-1.5 items-center">
+                <label className="text-[11px] font-semibold text-zinc-500 min-w-[60px] shrink-0">Value</label>
+                <Input
+                  className="flex-[2] h-6 bg-transparent border-zinc-800 text-zinc-200 text-xs px-2 focus-visible:ring-1 focus-visible:ring-zinc-700"
+                  placeholder="Enter API key value"
+                  value={auth.apiKey.value ?? ''}
+                  onChange={(e) => setAuth({ ...auth, apiKey: { ...auth.apiKey, value: e.target.value } })}
+                />
+              </div>
+              <div className="flex gap-1.5 items-center">
+                <label className="text-[11px] font-semibold text-zinc-500 min-w-[60px] shrink-0">Add to</label>
+                <Select
+                  value={auth.apiKey.addTo ?? 'header'}
+                  onValueChange={(val) => setAuth({ ...auth, apiKey: { ...auth.apiKey, addTo: val } })}
+                >
+                  <SelectTrigger className="w-[150px] h-6 text-xs bg-transparent border-zinc-800 text-zinc-200">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="header" className="text-xs">Header</SelectItem>
+                    <SelectItem value="query" className="text-xs">Query Param</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
+          )}
+
+          {auth?.type === 'saved' && savedApiKeys?.length > 0 && (
+            <>
+              <div className="flex gap-1.5 items-center">
+                <label className="text-[11px] font-semibold text-zinc-500 min-w-[60px] shrink-0">Key</label>
+                <Select
+                  value={auth.savedKeyName ?? ''}
+                  onValueChange={(val) => setAuth({ ...auth, savedKeyName: val })}
+                >
+                  <SelectTrigger className="w-[200px] h-6 text-xs bg-transparent border-zinc-800 text-zinc-200">
+                    <SelectValue placeholder="Select a saved key" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {savedApiKeys.map((k) => (
+                      <SelectItem key={k.name} value={k.name} className="text-xs">{k.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {auth.savedKeyName && (
+                <div className="flex items-center gap-2 mt-1 ml-[68px]">
+                  <span className="text-[10px] font-semibold bg-blue-500/10 text-blue-400 px-1.5 py-0.5 rounded-sm">
+                    Bearer token will be injected from saved key
+                  </span>
+                </div>
+              )}
+            </>
+          )}
+
+          {auth?.type === 'none' && (
+            <p className="text-[11px] text-zinc-500 mt-2">No authentication</p>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'Context' && (
+        <div className="flex-1 flex flex-col overflow-hidden p-2 gap-1.5">
+          {contextError && (
+            <div className="bg-zinc-900 text-red-400 border border-red-900 rounded p-1.5 text-[11px] shrink-0 font-mono">
+              <span className="mr-1">⚠</span> {contextError}
+            </div>
+          )}
+          <div className="flex-1 border border-zinc-800 rounded overflow-hidden relative">
             <Editor
-              defaultValue={body}
+              defaultValue={context}
               language="json"
               theme="vs-dark"
-              onMount={handleEditorMount}
-              onChange={handleEditorChange}
+              onMount={handleContextMount}
+              onChange={handleContextChange}
               options={{
                 fontSize: 13,
-                fontFamily: 'monospace',
+                fontFamily: "Menlo, Monaco, 'Courier New', monospace",
                 minimap: { enabled: false },
                 scrollBeyondLastLine: false,
                 lineNumbers: 'on',
@@ -126,104 +436,6 @@ export default function RequestPanel({ body, setBody }) {
           </div>
         </div>
       )}
-
-      {activeTab === 'Headers' && (
-        <div style={styles.placeholder}>Headers editor coming soon.</div>
-      )}
-      {activeTab === 'Context' && (
-        <div style={styles.placeholder}>AI context configuration coming soon.</div>
-      )}
     </div>
   );
 }
-
-const styles = {
-  panel: {
-    display: 'flex',
-    flexDirection: 'column',
-    height: '100%',
-    overflow: 'hidden',
-  },
-  tabBar: {
-    display: 'flex',
-    alignItems: 'center',
-    borderBottom: '1px solid #3c3c3c',
-    flexShrink: 0,
-  },
-  tab: {
-    background: 'none',
-    border: 'none',
-    borderBottom: '2px solid transparent',
-    color: '#888',
-    padding: '8px 16px',
-    fontSize: '12px',
-    fontFamily: 'monospace',
-    cursor: 'pointer',
-    marginBottom: '-1px',
-  },
-  tabActive: {
-    color: '#d4d4d4',
-    borderBottomColor: '#0e639c',
-  },
-  tabActions: {
-    marginLeft: 'auto',
-    marginRight: '12px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-  },
-  actionBtn: {
-    backgroundColor: 'transparent',
-    color: '#888',
-    border: '1px solid #3c3c3c',
-    borderRadius: '4px',
-    padding: '3px 10px',
-    fontSize: '11px',
-    fontFamily: 'monospace',
-    cursor: 'pointer',
-  },
-  templateSelect: {
-    backgroundColor: '#2d2d2d',
-    color: '#888',
-    border: '1px solid #3c3c3c',
-    borderRadius: '4px',
-    padding: '3px 8px',
-    fontSize: '11px',
-    fontFamily: 'monospace',
-    cursor: 'pointer',
-    outline: 'none',
-  },
-  editorWrapper: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    overflow: 'hidden',
-    padding: '12px',
-    gap: '8px',
-  },
-  errorBanner: {
-    backgroundColor: '#3a1a1a',
-    color: '#f48771',
-    border: '1px solid #5a2a2a',
-    borderRadius: '4px',
-    padding: '6px 10px',
-    fontSize: '12px',
-    fontFamily: 'monospace',
-    flexShrink: 0,
-  },
-  errorIcon: {
-    marginRight: '4px',
-  },
-  editorContainer: {
-    flex: 1,
-    border: '1px solid #3c3c3c',
-    borderRadius: '4px',
-    overflow: 'hidden',
-  },
-  placeholder: {
-    color: '#555',
-    fontSize: '13px',
-    fontFamily: 'monospace',
-    padding: '12px',
-  },
-};
