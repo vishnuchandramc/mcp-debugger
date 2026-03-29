@@ -629,6 +629,19 @@ export default function App() {
   }
 
   const currentOnRun = mode === 'http' ? handleRun : handleMcpRun;
+  const currentOnRunRef = useRef(currentOnRun);
+  currentOnRunRef.current = currentOnRun;
+
+  useEffect(() => {
+    function onKeyDown(e) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault();
+        currentOnRunRef.current();
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   return (
     <div className="flex flex-col h-screen bg-zinc-950 text-zinc-200 font-mono overflow-hidden" onMouseMove={onMouseMove} onMouseUp={onMouseUp}>
