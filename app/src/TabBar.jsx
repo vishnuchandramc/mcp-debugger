@@ -55,7 +55,7 @@ export default function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, onN
               style={{ WebkitAppRegion: 'no-drag' }}
               onClick={() => onSelectTab(tab.id)}
               className={cn(
-                "relative flex items-center justify-center gap-1.5 px-3 bg-transparent border-t border-x border-zinc-800 text-zinc-500 text-[11px] font-semibold cursor-pointer whitespace-nowrap shrink-0 hover:bg-zinc-800/50 outline-none transition-colors border-t-transparent rounded-t-lg -ml-px h-full",
+                "relative flex items-center justify-center gap-1.5 px-3 bg-transparent border-y border-x border-zinc-800 text-zinc-500 text-[11px] font-semibold cursor-pointer whitespace-nowrap shrink-0 hover:bg-zinc-800/50 outline-none transition-colors border-t-transparent border-b-transparent rounded-t-lg -ml-px h-full",
                 isActive ? "bg-zinc-900 text-zinc-100 hover:bg-zinc-900" : "",
                 isActive && !isMcp && "border-t-blue-500"
               )}
@@ -101,16 +101,18 @@ export default function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, onN
                 </span>
               )}
               {tabs.length > 1 && (
-                <span
+                <div
                   onClick={(e) => {
                     e.stopPropagation();
                     onCloseTab(tab.id);
                   }}
-                  className="text-[14px] leading-none text-zinc-500 cursor-pointer px-[2px] ml-1 hover:text-red-400"
+                  className="flex items-center justify-center w-4 h-4 rounded-sm text-zinc-500 hover:bg-zinc-700/50 hover:text-red-400 ml-0.5"
                   title="Close tab"
                 >
-                  ×
-                </span>
+                  <svg width="8" height="8" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <path d="M3 3l9 9m0-9l-9 9" />
+                  </svg>
+                </div>
               )}
             </button>
           );
