@@ -235,7 +235,7 @@ export default function RequestPanel({ body, setBody, headers, setHeaders, conte
                   onChange={handleEditorChange}
                   options={{
                     fontSize: 13,
-                    fontFamily: 'monospace',
+                    fontFamily: "Menlo, Monaco, 'Courier New', monospace",
                     minimap: { enabled: false },
                     scrollBeyondLastLine: false,
                     lineNumbers: 'on',
@@ -382,7 +382,7 @@ export default function RequestPanel({ body, setBody, headers, setHeaders, conte
               onChange={handleContextChange}
               options={{
                 fontSize: 13,
-                fontFamily: 'monospace',
+                fontFamily: "Menlo, Monaco, 'Courier New', monospace",
                 minimap: { enabled: false },
                 scrollBeyondLastLine: false,
                 lineNumbers: 'on',
