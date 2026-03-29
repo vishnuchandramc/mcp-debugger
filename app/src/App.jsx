@@ -3,6 +3,7 @@ import TopBar from './TopBar.jsx';
 import TabBar from './TabBar.jsx';
 import RequestPanel from './RequestPanel.jsx';
 import ResponsePanel from './ResponsePanel.jsx';
+import BottomConsole from './BottomConsole.jsx';
 import { createMcpClient, callMcpTool, disconnectMcpClient, generateToolTemplate } from './mcpClient.js';
 import { cn } from "@/lib/utils";
 import Editor from '@monaco-editor/react';
@@ -354,6 +355,17 @@ export default function App() {
   const [mcpConnected, setMcpConnected] = useState(false);
   const [mcpConnecting, setMcpConnecting] = useState(false);
 
+  // --- Console log state ---
+  const [consoleLogs, setConsoleLogs] = useState([]);
+  const [showConsole, setShowConsole] = useState(true);
+  const logIdRef = useRef(0);
+
+  function appendLog(msg, type = 'info') {
+    const now = new Date();
+    const time = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    setConsoleLogs(prev => [...prev, { id: logIdRef.current++, msg, type, time }]);
+  }
+
   // --- cURL state ---
   const [showCurl, setShowCurl] = useState(false);
   const [curlCommand, setCurlCommand] = useState('');
@@ -429,6 +441,7 @@ export default function App() {
     }
 
     setTabField({ loading: true, isError: false, response: null, rawResponse: null, toolExecution: null });
+    appendLog(`→ ${m} ${ep}`, 'info');
 
     try {
       const headersObj = buildHeadersObject(h, hasBody);
@@ -438,6 +451,8 @@ export default function App() {
         headers: finalHeaders,
         body: hasBody ? b : undefined,
       });
+
+      appendLog(`← ${res.status} ${res.statusText}`, res.ok ? 'success' : 'warn');
 
       const text = await res.text();
       let parsed = null;
@@ -452,6 +467,7 @@ export default function App() {
       pushHistory({ endpoint: ep, method: m, body: b, headers: h, timestamp: Date.now() });
     } catch (e) {
       const msg = `Network error: ${e.message}`;
+      appendLog(`✗ ${msg}`, 'error');
       setTabField({ response: msg, rawResponse: msg, isError: true });
     } finally {
       setTabField({ loading: false });
@@ -462,6 +478,7 @@ export default function App() {
   async function handleConnect() {
     setMcpConnecting(true);
     updateActiveTab({ isError: false, response: null, rawResponse: null, toolExecution: null });
+    appendLog(`→ Connecting to MCP server: ${mcpUrl}`, 'info');
 
     try {
       const { client, tools } = await createMcpClient(mcpUrl);
@@ -469,8 +486,10 @@ export default function App() {
       setMcpTools(tools);
       setMcpConnected(true);
       setSelectedTool(null);
+      appendLog(`✓ MCP connected — ${tools.length} tools discovered`, 'success');
     } catch (e) {
       const msg = `MCP connection error: ${e.message}`;
+      appendLog(`✗ ${msg}`, 'error');
       updateActiveTab({ response: msg, rawResponse: msg, isError: true });
       setMcpClient(null);
       setMcpTools([]);
@@ -716,6 +735,25 @@ export default function App() {
           </div>
         </div>
       </div>
+
+      {showConsole && (
+        <BottomConsole
+          logs={consoleLogs}
+          onClose={() => setShowConsole(false)}
+          onClear={() => setConsoleLogs([])}
+        />
+      )}
+
+      {!showConsole && (
+        <div className="flex items-center h-6 bg-zinc-950 border-t border-zinc-800 px-3 shrink-0">
+          <button
+            onClick={() => setShowConsole(true)}
+            className="text-[10px] text-zinc-500 hover:text-zinc-300 bg-transparent border-none cursor-pointer uppercase tracking-wider font-bold"
+          >
+            ⌃ Terminal
+          </button>
+        </div>
+      )}
 
       {showSettings && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={() => setShowSettings(false)}>
