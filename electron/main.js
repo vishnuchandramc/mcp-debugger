@@ -2,6 +2,7 @@ const { app, BrowserWindow, Menu, dialog, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
+app.name = 'Flow';
 let mainWindow = null;
 
 function createWindow() {
@@ -9,6 +10,7 @@ function createWindow() {
     width: 1200,
     height: 800,
     backgroundColor: '#09090b',
+    icon: path.join(__dirname, '..', 'assets', 'icon.png'),
     titleBarStyle: 'hidden',
     trafficLightPosition: { x: 16, y: 14 },
     webPreferences: {
@@ -126,7 +128,7 @@ ipcMain.handle('save-file', async (event, data, defaultName) => {
 
 app.whenReady().then(() => {
   app.setAboutPanelOptions({
-    applicationName: 'MCP Debugger',
+    applicationName: 'Flow',
     applicationVersion: '0.2.0',
     version: 'Beta Environment',
     copyright: 'Copyright © 2026'

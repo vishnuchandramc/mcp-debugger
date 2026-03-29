@@ -1160,7 +1160,7 @@ export default function App() {
 
             {/* Footer */}
             <div className="px-5 py-3 border-t border-zinc-800 flex items-center justify-between">
-              <span className="text-[10px] text-zinc-500 font-mono">MCP debugger</span>
+              <span className="text-[10px] text-zinc-500 font-mono">Flow</span>
               <div className="flex items-center gap-2">
                 <button
                   onClick={cancelSettings}
