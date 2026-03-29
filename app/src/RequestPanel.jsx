@@ -16,7 +16,7 @@ function isFormCompatibleSchema(schema) {
 }
 
 const HTTP_TABS = ['Body', 'Headers', 'Auth'];
-const MCP_TABS = ['Body', 'Headers', 'Context'];
+const MCP_TABS = ['Body', 'Context'];
 
 const TEMPLATES = {
   'Basic Request': JSON.stringify(
