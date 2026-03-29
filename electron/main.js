@@ -6,6 +6,19 @@ app.name = 'Flow';
 let mainWindow = null;
 
 function createWindow() {
+  const splash = new BrowserWindow({
+    width: 600,
+    height: 400,
+    transparent: true,
+    frame: false,
+    alwaysOnTop: true,
+    backgroundColor: '#09090b',
+    icon: path.join(__dirname, '..', 'assets', 'icon.png'),
+    resizable: false
+  });
+  
+  splash.loadFile(path.join(__dirname, 'splash.html'));
+
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -13,6 +26,7 @@ function createWindow() {
     icon: path.join(__dirname, '..', 'assets', 'icon.png'),
     titleBarStyle: 'hidden',
     trafficLightPosition: { x: 16, y: 14 },
+    show: false, // Don't show until ready + splash finishes
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -30,7 +44,23 @@ function createWindow() {
     }
   });
 
-  win.loadURL('http://localhost:5173');
+  // Load production file or development URL
+  if (app.isPackaged) {
+    win.loadFile(path.join(__dirname, '..', 'app', 'dist', 'index.html'));
+  } else {
+    win.loadURL('http://localhost:5173');
+  }
+
+  // Gracefully hide splash screen and show main window
+  win.once('ready-to-show', () => {
+    setTimeout(() => {
+      // Small artificial delay to ensure splash is visible for at least 1.5s
+      // making it feel like a structured initialization
+      splash.destroy();
+      win.show();
+      win.focus();
+    }, 1500);
+  });
 
   const isMac = process.platform === 'darwin';
   const template = [
