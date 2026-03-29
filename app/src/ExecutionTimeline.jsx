@@ -45,7 +45,7 @@ function formatJson(value) {
 
 function Step({ number, label, color, children }) {
   return (
-    <div className="bg-zinc-950 border border-zinc-800 rounded-md py-2 px-2.5">
+    <div className="bg-zinc-950 border border-zinc-800 rounded-none py-2 px-2.5">
       <div className="flex items-center gap-1.5 mb-1.5">
         <span className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[9px] font-bold text-white shrink-0" style={{ backgroundColor: color }}>{number}</span>
         <span className="text-[11px] font-semibold text-zinc-200">{label}</span>
@@ -73,7 +73,7 @@ export default function ExecutionTimeline({ requestBody, response, toolExecution
     <div className="flex flex-col gap-0">
       {/* Step 1: Prompt */}
       <Step number={1} label="Prompt" color="#0e639c">
-        <pre className="m-0 text-[11px] whitespace-pre-wrap break-words text-zinc-400 leading-relaxed bg-zinc-900 border border-zinc-800 rounded p-1.5 max-h-[150px] overflow-auto font-mono">{prompt ?? 'N/A'}</pre>
+        <pre className="m-0 text-[11px] whitespace-pre-wrap break-words text-zinc-400 leading-relaxed bg-zinc-900 border border-zinc-800 rounded-none p-1.5 max-h-[150px] overflow-auto font-mono">{prompt ?? 'N/A'}</pre>
       </Step>
 
       <Arrow />
@@ -89,7 +89,7 @@ export default function ExecutionTimeline({ requestBody, response, toolExecution
             {toolExecution.arguments != null && (
               <div className="mb-1">
                 <span className="text-[10px] text-zinc-500 font-semibold mr-1.5">Arguments:</span>
-                <pre className="m-0 text-[11px] whitespace-pre-wrap break-words text-zinc-400 leading-relaxed bg-zinc-900 border border-zinc-800 rounded p-1.5 max-h-[150px] overflow-auto font-mono">{formatJson(toolExecution.arguments)}</pre>
+                <pre className="m-0 text-[11px] whitespace-pre-wrap break-words text-zinc-400 leading-relaxed bg-zinc-900 border border-zinc-800 rounded-none p-1.5 max-h-[150px] overflow-auto font-mono">{formatJson(toolExecution.arguments)}</pre>
               </div>
             )}
           </Step>
@@ -110,7 +110,7 @@ export default function ExecutionTimeline({ requestBody, response, toolExecution
 
           {/* Step 4: Tool Response */}
           <Step number={4} label="Tool Response" color="#4ec9b0">
-            <pre className="m-0 text-[11px] whitespace-pre-wrap break-words text-zinc-400 leading-relaxed bg-zinc-900 border border-zinc-800 rounded p-1.5 max-h-[150px] overflow-auto font-mono">
+            <pre className="m-0 text-[11px] whitespace-pre-wrap break-words text-zinc-400 leading-relaxed bg-zinc-900 border border-zinc-800 rounded-none p-1.5 max-h-[150px] overflow-auto font-mono">
               {toolExecution.output != null ? formatJson(toolExecution.output) : 'N/A'}
             </pre>
           </Step>
@@ -119,14 +119,14 @@ export default function ExecutionTimeline({ requestBody, response, toolExecution
 
           {/* Step 5: Final Output */}
           <Step number={5} label="Final Output" color="#9cdcfe">
-            <pre className="m-0 text-[11px] whitespace-pre-wrap break-words text-zinc-400 leading-relaxed bg-zinc-900 border border-zinc-800 rounded p-1.5 max-h-[150px] overflow-auto font-mono">{finalOutput ?? 'N/A'}</pre>
+            <pre className="m-0 text-[11px] whitespace-pre-wrap break-words text-zinc-400 leading-relaxed bg-zinc-900 border border-zinc-800 rounded-none p-1.5 max-h-[150px] overflow-auto font-mono">{finalOutput ?? 'N/A'}</pre>
           </Step>
         </>
       ) : (
         <>
           {/* No tool — skip straight to final output */}
           <Step number={2} label="Final Output" color="#9cdcfe">
-            <pre className="m-0 text-[11px] whitespace-pre-wrap break-words text-zinc-400 leading-relaxed bg-zinc-900 border border-zinc-800 rounded p-1.5 max-h-[150px] overflow-auto font-mono">{finalOutput ?? formatJson(parsedResponse) ?? 'N/A'}</pre>
+            <pre className="m-0 text-[11px] whitespace-pre-wrap break-words text-zinc-400 leading-relaxed bg-zinc-900 border border-zinc-800 rounded-none p-1.5 max-h-[150px] overflow-auto font-mono">{finalOutput ?? formatJson(parsedResponse) ?? 'N/A'}</pre>
           </Step>
         </>
       )}

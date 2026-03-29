@@ -154,7 +154,7 @@ export default function RequestPanel({ body, setBody, headers, setHeaders, conte
                 <button
                   onClick={() => setViewMode('form')}
                   className={cn(
-                    "bg-transparent text-zinc-400 border border-zinc-800 rounded px-2 py-0.5 text-[10px] cursor-pointer hover:bg-zinc-800",
+                    "bg-transparent text-zinc-400 border border-zinc-800 rounded-none px-2 py-0.5 text-[10px] cursor-pointer hover:bg-zinc-800",
                     viewMode === 'form' && "bg-zinc-800 text-zinc-100 border-zinc-700"
                   )}
                 >
@@ -163,7 +163,7 @@ export default function RequestPanel({ body, setBody, headers, setHeaders, conte
                 <button
                   onClick={() => setViewMode('json')}
                   className={cn(
-                    "bg-transparent text-zinc-400 border border-zinc-800 rounded px-2 py-0.5 text-[10px] cursor-pointer hover:bg-zinc-800",
+                    "bg-transparent text-zinc-400 border border-zinc-800 rounded-none px-2 py-0.5 text-[10px] cursor-pointer hover:bg-zinc-800",
                     viewMode === 'json' && "bg-zinc-800 text-zinc-100 border-zinc-700"
                   )}
                 >
@@ -179,11 +179,11 @@ export default function RequestPanel({ body, setBody, headers, setHeaders, conte
                 setBodyCopied(true);
                 setTimeout(() => setBodyCopied(false), 2000);
               }}
-              className="bg-transparent text-zinc-400 border border-zinc-800 rounded px-2 py-0.5 text-[10px] cursor-pointer hover:bg-zinc-800"
+              className="bg-transparent text-zinc-400 border border-zinc-800 rounded-none px-2 py-0.5 text-[10px] cursor-pointer hover:bg-zinc-800"
             >
               {bodyCopied ? 'Copied!' : 'Copy'}
             </button>
-            <button onClick={handleFormat} className="bg-transparent text-zinc-400 border border-zinc-800 rounded px-2 py-0.5 text-[10px] cursor-pointer hover:bg-zinc-800">Format</button>
+            <button onClick={handleFormat} className="bg-transparent text-zinc-400 border border-zinc-800 rounded-none px-2 py-0.5 text-[10px] cursor-pointer hover:bg-zinc-800">Format</button>
             <Select onValueChange={handleTemplate}>
               <SelectTrigger className="w-[100px] h-5 min-h-5 text-[10px] bg-transparent border-zinc-800 text-zinc-400 px-2 py-0">
                 <SelectValue placeholder="Templates" />
@@ -255,7 +255,7 @@ export default function RequestPanel({ body, setBody, headers, setHeaders, conte
       {activeTab === 'Headers' && (
         <div className="flex-1 flex flex-col overflow-hidden p-2 gap-1.5">
           <div className="flex justify-end shrink-0">
-            <button onClick={handleAddHeader} className="bg-transparent text-zinc-400 border border-zinc-800 rounded px-2 py-0.5 text-[10px] cursor-pointer hover:bg-zinc-800">+ Add Header</button>
+            <button onClick={handleAddHeader} className="bg-transparent text-zinc-400 border border-zinc-800 rounded-none px-2 py-0.5 text-[10px] cursor-pointer hover:bg-zinc-800">+ Add Header</button>
           </div>
           <div className="flex-1 flex flex-col gap-1 overflow-y-auto">
             {headers.map((header, i) => (
@@ -274,7 +274,7 @@ export default function RequestPanel({ body, setBody, headers, setHeaders, conte
                 />
                 <button
                   onClick={() => handleRemoveHeader(i)}
-                  className="bg-transparent border-none text-zinc-500 text-base cursor-pointer px-1 rounded hover:text-red-400 hover:bg-zinc-800/50"
+                  className="bg-transparent border-none text-zinc-500 text-base cursor-pointer px-1 rounded-none hover:text-red-400 hover:bg-zinc-800/50"
                   title="Remove header"
                 >
                   ×

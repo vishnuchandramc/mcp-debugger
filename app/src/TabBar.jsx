@@ -39,8 +39,11 @@ export default function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, onN
   }
 
   return (
-    <div className="flex items-center bg-zinc-900 border-b border-zinc-800 shrink-0 min-h-[28px]">
-      <div className="flex overflow-x-auto flex-1 h-[28px]">
+    <div 
+      className="flex items-end bg-zinc-950 border-b border-zinc-800 shrink-0 min-h-[38px] pl-[80px] pt-1.5 select-none"
+      style={{ WebkitAppRegion: 'drag' }}
+    >
+      <div className="flex overflow-x-auto flex-1 h-[30px]" style={{ WebkitAppRegion: 'no-drag' }}>
         {tabs.map((tab) => {
           const isActive = tab.id === activeTabId;
           const isEditing = editingTabId === tab.id;
@@ -49,8 +52,8 @@ export default function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, onN
               key={tab.id}
               onClick={() => onSelectTab(tab.id)}
               className={cn(
-                "flex items-center gap-1.5 px-3 bg-transparent border-none border-r border-zinc-800 text-zinc-500 text-[11px] font-semibold cursor-pointer whitespace-nowrap shrink-0 hover:bg-zinc-800/50 outline-none transition-colors",
-                isActive && "bg-zinc-800 text-zinc-100 hover:bg-zinc-800"
+                "flex items-center gap-1.5 px-3 bg-transparent border-none border-x border-zinc-800 text-zinc-500 text-[11px] font-semibold cursor-pointer whitespace-nowrap shrink-0 hover:bg-zinc-800/50 outline-none transition-colors border-t border-t-transparent rounded-t-md -ml-px",
+                isActive && "bg-zinc-900 text-zinc-100 hover:bg-zinc-900 border-t-blue-500 border-b-transparent"
               )}
             >
               <span className="text-[10px] font-bold" style={{ color: METHOD_COLORS[tab.method] || '#d4d4d4' }}>
@@ -95,10 +98,14 @@ export default function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab, onN
             </button>
           );
         })}
+        <button 
+          onClick={onNewTab} 
+          className="bg-transparent border-none text-zinc-400 text-xl font-light leading-none cursor-pointer shrink-0 hover:text-zinc-200 hover:bg-zinc-800 flex items-center justify-center w-[24px] h-[24px] rounded ml-1 mb-[2px] outline-none" 
+          title="New tab" 
+        >
+          +
+        </button>
       </div>
-      <button onClick={onNewTab} className="bg-transparent border-none text-zinc-500 text-base cursor-pointer px-3 shrink-0 hover:text-zinc-300" title="New tab">
-        +
-      </button>
     </div>
   );
 }

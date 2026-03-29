@@ -41,8 +41,9 @@ export default function TopBar({
   onCurlImport,
 }) {
   return (
-    <div className="flex items-center gap-3 py-1.5 px-3 bg-zinc-950 border-b border-zinc-800 shrink-0">
-      <span className="text-[11px] font-bold text-zinc-500 whitespace-nowrap tracking-wider uppercase">MCP Debugger</span>
+    <div 
+      className="flex items-center gap-3 py-2 px-3 bg-zinc-900 border-b border-zinc-800 shrink-0 select-none"
+    >
       <div className="flex items-center gap-1.5 flex-1">
         {/* Mode selector */}
         <Select value={mode} onValueChange={(val) => setMode(val)}>
@@ -84,7 +85,7 @@ export default function TopBar({
                 }
               }}
               placeholder="https://example.com/api/endpoint"
-              className="flex-1 h-8 bg-zinc-950/50 border-zinc-800 text-zinc-200 text-xs focus-visible:ring-1 focus-visible:ring-zinc-700 font-mono shadow-sm"
+              className="flex-1 h-8 bg-zinc-950/50 border-zinc-800 text-zinc-400 placeholder:text-zinc-600 text-xs focus-visible:ring-1 focus-visible:ring-zinc-700 font-mono shadow-sm"
               spellCheck={false}
             />
             <Button
@@ -112,7 +113,7 @@ export default function TopBar({
               value={mcpUrl}
               onChange={(e) => setMcpUrl(e.target.value)}
               placeholder="http://localhost:3000/sse"
-              className="flex-1 h-8 bg-zinc-950/50 border-zinc-800 text-zinc-200 text-xs focus-visible:ring-1 focus-visible:ring-zinc-700 font-mono shadow-sm"
+              className="flex-1 h-8 bg-zinc-950/50 border-zinc-800 text-zinc-400 placeholder:text-zinc-600 text-xs focus-visible:ring-1 focus-visible:ring-zinc-700 font-mono shadow-sm"
               spellCheck={false}
               disabled={mcpConnected || mcpConnecting}
             />

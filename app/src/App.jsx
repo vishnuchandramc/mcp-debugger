@@ -558,6 +558,15 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-screen bg-zinc-950 text-zinc-200 font-mono overflow-hidden" onMouseMove={onMouseMove} onMouseUp={onMouseUp}>
+      <TabBar
+        tabs={tabs}
+        activeTabId={activeTabId}
+        onSelectTab={handleSelectTab}
+        onCloseTab={handleCloseTab}
+        onNewTab={handleNewTab}
+        onRenameTab={handleRenameTab}
+      />
+
       <TopBar
         mode={mode}
         setMode={handleModeChange}
@@ -578,15 +587,6 @@ export default function App() {
         onCurlImport={handleCurlImport}
       />
 
-      <TabBar
-        tabs={tabs}
-        activeTabId={activeTabId}
-        onSelectTab={handleSelectTab}
-        onCloseTab={handleCloseTab}
-        onNewTab={handleNewTab}
-        onRenameTab={handleRenameTab}
-      />
-
       <div className="flex flex-1 overflow-hidden">
         <aside className="w-[180px] shrink-0 bg-zinc-950 border-r border-zinc-800 p-2 overflow-y-auto">
           {mode === 'http' ? (
@@ -599,7 +599,7 @@ export default function App() {
                   <button
                     key={i}
                     onClick={() => loadHistoryItem(item)}
-                    className="flex flex-col gap-0.5 w-full bg-transparent hover:bg-zinc-900 border-none rounded p-1.5 mb-0.5 cursor-pointer text-left outline-none transition-colors"
+                    className="flex flex-col gap-0.5 w-full bg-transparent hover:bg-zinc-900 border-none rounded-none p-1.5 mb-0.5 cursor-pointer text-left outline-none transition-colors"
                     title={item.endpoint}
                   >
                     <span className="text-[10px] font-bold" style={{ color: METHOD_COLORS[item.method] }}>
@@ -623,7 +623,7 @@ export default function App() {
                     key={tool.name}
                     onClick={() => handleToolSelect(tool)}
                     className={cn(
-                      "flex flex-col gap-0.5 w-full bg-transparent hover:bg-zinc-900 border-none rounded p-1.5 mb-0.5 cursor-pointer text-left outline-none transition-colors",
+                      "flex flex-col gap-0.5 w-full bg-transparent hover:bg-zinc-900 border-none rounded-none p-1.5 mb-0.5 cursor-pointer text-left outline-none transition-colors",
                       selectedTool?.name === tool.name && "bg-zinc-800 hover:bg-zinc-800"
                     )}
                     title={tool.description || tool.name}
@@ -675,17 +675,17 @@ export default function App() {
 
       {showCurl && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={() => setShowCurl(false)}>
-          <div className="bg-zinc-900 border border-zinc-800 rounded-md p-4 w-[600px] max-w-[90vw] flex flex-col gap-3" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-none p-4 w-[600px] max-w-[90vw] flex flex-col gap-3" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center">
               <span className="text-[13px] font-semibold text-zinc-200">cURL Command</span>
               <button onClick={() => setShowCurl(false)} className="text-zinc-500 text-lg hover:text-zinc-300 leading-none p-0 outline-none">
                 &times;
               </button>
             </div>
-            <pre className="bg-zinc-950 border border-zinc-800 rounded p-2.5 m-0 text-xs text-zinc-400 whitespace-pre-wrap break-all max-h-[400px] overflow-y-auto">
+            <pre className="bg-zinc-950 border border-zinc-800 rounded-none p-2.5 m-0 text-xs text-zinc-400 whitespace-pre-wrap break-all max-h-[400px] overflow-y-auto">
               {curlCommand}
             </pre>
-            <button onClick={handleCurlCopy} className="self-end bg-transparent text-zinc-200 border border-zinc-700 hover:bg-zinc-800 rounded px-4 py-1.5 text-xs outline-none transition-colors">
+            <button onClick={handleCurlCopy} className="self-end bg-transparent text-zinc-200 border border-zinc-700 hover:bg-zinc-800 rounded-none px-4 py-1.5 text-xs outline-none transition-colors">
               {curlCopied ? 'Copied!' : 'Copy'}
             </button>
           </div>

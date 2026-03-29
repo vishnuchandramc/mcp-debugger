@@ -39,7 +39,7 @@ export default function ResponsePanel({ response, rawResponse, isError, toolExec
           <div className="ml-auto mr-2 flex items-center">
             <button
               onClick={handleCopy}
-              className="bg-transparent text-zinc-400 border border-zinc-800 rounded px-2 py-0.5 text-[10px] cursor-pointer hover:bg-zinc-800 transition-colors"
+              className="bg-transparent text-zinc-400 border border-zinc-800 rounded-none px-2 py-0.5 text-[10px] cursor-pointer hover:bg-zinc-800 transition-colors"
               title="Copy response"
             >
               {copied ? 'Copied!' : 'Copy'}
