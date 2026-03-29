@@ -731,6 +731,7 @@ export default function App() {
               isError={activeTab.isError}
               toolExecution={activeTab.toolExecution}
               requestBody={activeTab.body}
+              mode={activeTab.mode}
             />
           </div>
         </div>

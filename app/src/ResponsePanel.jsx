@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import ExecutionTimeline from './ExecutionTimeline.jsx';
+import Editor from '@monaco-editor/react';
 import { cn } from "@/lib/utils";
 
-export default function ResponsePanel({ response, rawResponse, isError, toolExecution, requestBody }) {
+export default function ResponsePanel({ response, rawResponse, isError, toolExecution, requestBody, mode }) {
   const [activeTab, setActiveTab] = useState('Pretty');
   const [copied, setCopied] = useState(false);
 
-  const hasTimeline = toolExecution != null;
+  const hasTimeline = mode === 'mcp' && toolExecution != null;
   const tabs = hasTimeline ? ['Pretty', 'Raw', 'Timeline'] : ['Pretty', 'Raw'];
 
   // Reset to Pretty if Timeline was active but no longer available
@@ -18,6 +19,17 @@ export default function ResponsePanel({ response, rawResponse, isError, toolExec
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  }
+
+  const displayValue = effectiveTab === 'Pretty' ? response : rawResponse;
+
+  // Detect language for syntax highlighting
+  function detectLanguage(text) {
+    if (!text) return 'plaintext';
+    const trimmed = text.trim();
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) return 'json';
+    if (trimmed.startsWith('<')) return 'html';
+    return 'plaintext';
   }
 
   return (
@@ -48,55 +60,49 @@ export default function ResponsePanel({ response, rawResponse, isError, toolExec
         )}
       </div>
 
-      <div className="flex-1 overflow-auto p-2 flex flex-col gap-3">
+      <div className="flex-1 overflow-hidden flex flex-col">
         {response === null ? (
-          <p className="text-zinc-500 text-xs m-0">Send a request to see the response.</p>
+          <div className="p-2">
+            <p className="text-zinc-500 text-xs m-0">Send a request to see the response.</p>
+          </div>
         ) : effectiveTab === 'Timeline' ? (
-          <ExecutionTimeline
-            requestBody={requestBody}
-            response={response}
-            toolExecution={toolExecution}
-          />
+          <div className="flex-1 overflow-auto p-2">
+            <ExecutionTimeline
+              requestBody={requestBody}
+              response={response}
+              toolExecution={toolExecution}
+            />
+          </div>
+        ) : effectiveTab === 'Pretty' ? (
+          <div className="flex-1 overflow-hidden border-t border-zinc-800">
+            <Editor
+              value={response || ''}
+              language={detectLanguage(response)}
+              theme="vs-dark"
+              options={{
+                readOnly: true,
+                fontSize: 13,
+                fontFamily: "Menlo, Monaco, 'Courier New', monospace",
+                minimap: { enabled: false },
+                scrollBeyondLastLine: false,
+                lineNumbers: 'on',
+                renderLineHighlight: 'line',
+                tabSize: 2,
+                wordWrap: 'on',
+                automaticLayout: true,
+                padding: { top: 10, bottom: 10 },
+                domReadOnly: true,
+              }}
+            />
+          </div>
         ) : (
-          <>
-            <pre className={cn("m-0 text-xs whitespace-pre-wrap break-words text-zinc-200 leading-relaxed font-mono", isError && "text-red-400")}>
-              {effectiveTab === 'Pretty' ? response : rawResponse}
+          <div className="flex-1 overflow-auto p-3">
+            <pre className="m-0 text-[13px] whitespace-pre-wrap break-words text-zinc-300 leading-relaxed font-mono">
+              {rawResponse || ''}
             </pre>
-
-            <div className="border-t border-zinc-800 pt-2">
-              <p className="text-[10px] font-bold tracking-wider text-zinc-500 m-0 mb-2 uppercase">TOOL EXECUTION</p>
-              {toolExecution ? (
-                <div className="grid grid-cols-[70px_1fr] gap-x-2 gap-y-1 items-start">
-                  <span className="text-[11px] text-zinc-500 pt-1 font-semibold text-right">Tool</span>
-                  <span className="text-xs text-zinc-200 pt-[3px] font-semibold">{toolExecution.name ?? '—'}</span>
-
-                  <span className="text-[11px] text-zinc-500 pt-1 font-semibold text-right">Arguments</span>
-                  <pre className="m-0 mb-1 text-[11px] whitespace-pre-wrap break-words text-zinc-400 leading-relaxed bg-zinc-950 border border-zinc-800 rounded p-1.5 font-mono">
-                    {toolExecution.arguments != null
-                      ? JSON.stringify(toolExecution.arguments, null, 2)
-                      : '—'}
-                  </pre>
-
-                  {toolExecution.output != null && (
-                    <>
-                      <span className="text-[11px] text-zinc-500 pt-1 font-semibold text-right">Output</span>
-                      <pre className="m-0 mb-1 text-[11px] whitespace-pre-wrap break-words text-zinc-400 leading-relaxed bg-zinc-950 border border-zinc-800 rounded p-1.5 font-mono">
-                        {typeof toolExecution.output === 'string'
-                          ? toolExecution.output
-                          : JSON.stringify(toolExecution.output, null, 2)}
-                      </pre>
-                    </>
-                  )}
-                </div>
-              ) : (
-                <p className="text-[11px] text-zinc-600 m-0 italic">No tool execution detected</p>
-              )}
-            </div>
-          </>
+          </div>
         )}
       </div>
     </div>
   );
 }
-
-

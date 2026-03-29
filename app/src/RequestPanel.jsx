@@ -15,7 +15,7 @@ function isFormCompatibleSchema(schema) {
   );
 }
 
-const HTTP_TABS = ['Body', 'Headers', 'Auth'];
+const HTTP_TABS = ['Headers', 'Body', 'Auth'];
 const MCP_TABS = ['Body', 'Context'];
 
 const TEMPLATES = {
@@ -47,7 +47,7 @@ const TEMPLATES = {
 };
 
 export default function RequestPanel({ body, setBody, headers, setHeaders, context, setContext, auth, setAuth, selectedTool, mode }) {
-  const [activeTab, setActiveTab] = useState('Body');
+  const [activeTab, setActiveTab] = useState('Headers');
   const [jsonError, setJsonError] = useState(null);
   const [contextError, setContextError] = useState(null);
   const [bodyCopied, setBodyCopied] = useState(false);
@@ -62,10 +62,12 @@ export default function RequestPanel({ body, setBody, headers, setHeaders, conte
   }, [selectedTool, canShowForm]);
 
   useEffect(() => {
-    if (mode !== 'mcp' && activeTab === 'Context') {
+    if (mode === 'mcp') {
       setActiveTab('Body');
+    } else {
+      setActiveTab('Headers');
     }
-  }, [mode, activeTab]);
+  }, [mode]);
 
   const handleEditorMount = useCallback((editor) => {
     editorRef.current = editor;
