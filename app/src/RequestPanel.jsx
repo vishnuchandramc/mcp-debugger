@@ -1,5 +1,15 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
+import SchemaForm from './SchemaForm';
+
+function isFormCompatibleSchema(schema) {
+  if (!schema || schema.type !== 'object' || !schema.properties) return false;
+  const props = Object.entries(schema.properties);
+  if (props.length === 0) return false;
+  return props.every(([, prop]) =>
+    ['string', 'number', 'integer', 'boolean'].includes(prop.type)
+  );
+}
 
 const HTTP_TABS = ['Body', 'Headers'];
 const MCP_TABS = ['Body', 'Headers', 'Context'];
@@ -37,8 +47,15 @@ export default function RequestPanel({ body, setBody, headers, setHeaders, conte
   const [jsonError, setJsonError] = useState(null);
   const [contextError, setContextError] = useState(null);
   const [bodyCopied, setBodyCopied] = useState(false);
+  const [viewMode, setViewMode] = useState('json');
   const editorRef = useRef(null);
   const contextEditorRef = useRef(null);
+
+  const canShowForm = mode === 'mcp' && selectedTool && isFormCompatibleSchema(selectedTool.inputSchema);
+
+  useEffect(() => {
+    setViewMode(canShowForm ? 'form' : 'json');
+  }, [selectedTool, canShowForm]);
 
   useEffect(() => {
     if (mode !== 'mcp' && activeTab === 'Context') {
@@ -126,6 +143,23 @@ export default function RequestPanel({ body, setBody, headers, setHeaders, conte
         ))}
         {activeTab === 'Body' && (
           <div style={styles.tabActions}>
+            {canShowForm && (
+              <>
+                <button
+                  onClick={() => setViewMode('form')}
+                  style={{ ...styles.actionBtn, ...(viewMode === 'form' ? styles.toggleActive : {}) }}
+                >
+                  Form
+                </button>
+                <button
+                  onClick={() => setViewMode('json')}
+                  style={{ ...styles.actionBtn, ...(viewMode === 'json' ? styles.toggleActive : {}) }}
+                >
+                  JSON
+                </button>
+                <span style={styles.toggleDivider} />
+              </>
+            )}
             <button
               onClick={() => {
                 if (!body) return;
@@ -158,32 +192,47 @@ export default function RequestPanel({ body, setBody, headers, setHeaders, conte
               )}
             </div>
           )}
-          {jsonError && (
-            <div style={styles.errorBanner}>
-              <span style={styles.errorIcon}>⚠</span> {jsonError}
-            </div>
-          )}
-          <div style={styles.editorContainer}>
-            <Editor
-              defaultValue={body}
-              language="json"
-              theme="vs-dark"
-              onMount={handleEditorMount}
-              onChange={handleEditorChange}
-              options={{
-                fontSize: 13,
-                fontFamily: 'monospace',
-                minimap: { enabled: false },
-                scrollBeyondLastLine: false,
-                lineNumbers: 'on',
-                renderLineHighlight: 'line',
-                tabSize: 2,
-                wordWrap: 'on',
-                automaticLayout: true,
-                padding: { top: 10, bottom: 10 },
+          {viewMode === 'form' && canShowForm ? (
+            <SchemaForm
+              schema={selectedTool.inputSchema}
+              values={(() => { try { return JSON.parse(body) || {}; } catch { return {}; } })()}
+              onChange={(newValues) => {
+                const json = JSON.stringify(newValues, null, 2);
+                setBody(json);
+                setJsonError(null);
+                editorRef.current?.setValue(json);
               }}
             />
-          </div>
+          ) : (
+            <>
+              {jsonError && (
+                <div style={styles.errorBanner}>
+                  <span style={styles.errorIcon}>⚠</span> {jsonError}
+                </div>
+              )}
+              <div style={styles.editorContainer}>
+                <Editor
+                  defaultValue={body}
+                  language="json"
+                  theme="vs-dark"
+                  onMount={handleEditorMount}
+                  onChange={handleEditorChange}
+                  options={{
+                    fontSize: 13,
+                    fontFamily: 'monospace',
+                    minimap: { enabled: false },
+                    scrollBeyondLastLine: false,
+                    lineNumbers: 'on',
+                    renderLineHighlight: 'line',
+                    tabSize: 2,
+                    wordWrap: 'on',
+                    automaticLayout: true,
+                    padding: { top: 10, bottom: 10 },
+                  }}
+                />
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -298,6 +347,16 @@ const styles = {
     fontSize: '11px',
     fontFamily: 'monospace',
     cursor: 'pointer',
+  },
+  toggleActive: {
+    backgroundColor: '#094771',
+    color: '#d4d4d4',
+    borderColor: '#094771',
+  },
+  toggleDivider: {
+    width: '1px',
+    height: '16px',
+    backgroundColor: '#3c3c3c',
   },
   templateSelect: {
     backgroundColor: '#2d2d2d',
