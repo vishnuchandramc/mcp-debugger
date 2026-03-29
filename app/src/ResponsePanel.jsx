@@ -2,6 +2,72 @@ import React, { useState, useEffect, useRef } from 'react';
 import ExecutionTimeline from './ExecutionTimeline.jsx';
 import Editor from '@monaco-editor/react';
 import { cn } from "@/lib/utils";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeSanitize from 'rehype-sanitize';
+
+const markdownComponents = {
+  code({ node, className, children, ...props }) {
+    const isBlock = className || String(children).includes('\n');
+    if (isBlock) {
+      return (
+        <pre className="bg-zinc-950 border border-zinc-800 rounded p-3 overflow-x-auto text-[12px] my-1">
+          <code className={cn("font-mono", className)} {...props}>{children}</code>
+        </pre>
+      );
+    }
+    return (
+      <code className="bg-zinc-800 px-1 py-0.5 rounded text-[12px] font-mono" {...props}>
+        {children}
+      </code>
+    );
+  },
+  a({ node, children, ...props }) {
+    return <a className="text-blue-400 hover:underline" target="_blank" rel="noopener noreferrer" {...props}>{children}</a>;
+  },
+  p({ node, children, ...props }) {
+    return <p className="text-[13px] text-zinc-200 leading-relaxed my-1" {...props}>{children}</p>;
+  },
+  h1({ node, children, ...props }) {
+    return <h1 className="text-[15px] font-semibold text-zinc-100 mt-3 mb-1" {...props}>{children}</h1>;
+  },
+  h2({ node, children, ...props }) {
+    return <h2 className="text-[14px] font-semibold text-zinc-100 mt-2 mb-1" {...props}>{children}</h2>;
+  },
+  h3({ node, children, ...props }) {
+    return <h3 className="text-[13px] font-semibold text-zinc-100 mt-2 mb-1" {...props}>{children}</h3>;
+  },
+  h4({ node, children, ...props }) {
+    return <h4 className="text-[13px] font-semibold text-zinc-100 mt-1 mb-0.5" {...props}>{children}</h4>;
+  },
+  h5({ node, children, ...props }) {
+    return <h5 className="text-[13px] font-semibold text-zinc-100 mt-1 mb-0.5" {...props}>{children}</h5>;
+  },
+  h6({ node, children, ...props }) {
+    return <h6 className="text-[13px] font-semibold text-zinc-100 mt-1 mb-0.5" {...props}>{children}</h6>;
+  },
+  ul({ node, children, ...props }) {
+    return <ul className="text-[13px] text-zinc-300 pl-5 my-1 list-disc" {...props}>{children}</ul>;
+  },
+  ol({ node, children, ...props }) {
+    return <ol className="text-[13px] text-zinc-300 pl-5 my-1 list-decimal" {...props}>{children}</ol>;
+  },
+  li({ node, children, ...props }) {
+    return <li className="my-0.5" {...props}>{children}</li>;
+  },
+  table({ node, children, ...props }) {
+    return <table className="text-[12px] border-collapse my-2 w-full" {...props}>{children}</table>;
+  },
+  th({ node, children, ...props }) {
+    return <th className="border border-zinc-700 px-2 py-1 text-left text-zinc-200 bg-zinc-800 font-semibold" {...props}>{children}</th>;
+  },
+  td({ node, children, ...props }) {
+    return <td className="border border-zinc-700 px-2 py-1 text-zinc-300" {...props}>{children}</td>;
+  },
+  blockquote({ node, children, ...props }) {
+    return <blockquote className="border-l-2 border-zinc-600 pl-3 text-zinc-400 my-1" {...props}>{children}</blockquote>;
+  },
+};
 
 function detectAIResponse(parsed) {
   if (!parsed || typeof parsed !== 'object') return null;
@@ -201,9 +267,15 @@ export default function ResponsePanel({ response, rawResponse, isError, toolExec
                 )}
               </div>
             ) : null}
-            <pre className="m-0 text-[13px] whitespace-pre-wrap break-words text-zinc-200 leading-relaxed font-mono">
-              {aiResponse?.content ?? ''}
-            </pre>
+            <div className="text-[13px] text-zinc-200 leading-relaxed prose-invert max-w-none">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeSanitize]}
+                components={markdownComponents}
+              >
+                {aiResponse?.content ?? ''}
+              </ReactMarkdown>
+            </div>
           </div>
         ) : effectiveTab === 'Timeline' ? (
           <div className="flex-1 overflow-auto p-2">
